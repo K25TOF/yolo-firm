@@ -296,10 +296,7 @@ def ensure_server_running(port: int = 8003) -> bool:
         print("[session] WARNING: server.py not found, continuing without streaming")
         return False
 
-    session_token = os.environ.get("SESSION_TOKEN")
     cmd = [sys.executable, str(server_script), "--port", str(port)]
-    if session_token:
-        cmd.extend(["--token", session_token])
 
     try:
         subprocess.Popen(
@@ -328,13 +325,7 @@ def connect_ws(port: int = 8003) -> object | None:
     try:
         from websockets.sync.client import connect
 
-        session_token = os.environ.get("SESSION_TOKEN")
-        ws = connect(f"ws://127.0.0.1:{port}")
-
-        if session_token:
-            ws.send(json.dumps({"type": "auth", "token": session_token}))
-
-        return ws
+        return connect(f"ws://127.0.0.1:{port}")
     except Exception:
         return None
 
@@ -432,20 +423,7 @@ def run_session(
         ws_conn = connect_ws()
         if ws_conn:
             print("[session] Connected to WebSocket server")
-        session_token = os.environ.get("SESSION_TOKEN")
-        if session_token:
-            url = f"http://localhost:8003?token={session_token}"
-        else:
-            url = "http://localhost:8003"
-        print(f"Chat UI → {url}")
-        try:
-            subprocess.Popen(
-                ["code", "--open-url", url],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except OSError:
-            pass  # VS Code CLI not available — non-critical
+        print("Chat UI → http://localhost:8003")
 
     def _invoke(agent, message, prompt, docs, mem, transcript=""):
         """Invoke agent — streaming if WS connected, blocking otherwise."""

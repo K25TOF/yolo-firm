@@ -1,11 +1,11 @@
 """WebSocket server for YOLO Org Learning session streaming.
 
 Accepts connections from chat UI, receives streamed tokens from session.py,
-broadcasts to all connected clients.
+broadcasts to all connected clients. Localhost-only, no auth required.
 
 Usage:
     python server.py
-    python server.py --port 8003 --token mysecret
+    python server.py --port 8003
 """
 
 from __future__ import annotations
@@ -90,26 +90,6 @@ async def handle_command(data: dict) -> bool:
     return False
 
 
-async def authenticate(websocket: object, token: str | None) -> bool:
-    """Authenticate a WebSocket connection.
-
-    If token is None, auth is disabled and all connections are accepted.
-    Otherwise, client must send {"type": "auth", "token": "..."} as first message.
-    """
-    if token is None:
-        return True
-
-    try:
-        raw = await websocket.recv()
-        data = json.loads(raw)
-        if data.get("type") == "auth" and data.get("token") == token:
-            return True
-    except (json.JSONDecodeError, TypeError, KeyError):
-        pass
-
-    await websocket.close(1008, "Authentication failed")
-    return False
-
 
 async def broadcast(message: dict) -> None:
     """Send a message to all connected clients.
@@ -142,11 +122,8 @@ async def broadcast(message: dict) -> None:
     CONNECTED_CLIENTS.difference_update(disconnected)
 
 
-async def handler(websocket: object, token: str | None) -> None:
+async def handler(websocket: object) -> None:
     """Handle a single WebSocket connection."""
-    if not await authenticate(websocket, token):
-        return
-
     CONNECTED_CLIENTS.add(websocket)
     remote = getattr(websocket, "remote_address", ("unknown",))
     print(f"[server] Client connected: {remote}")
@@ -194,7 +171,7 @@ def _cleanup_pid() -> None:
         pass
 
 
-async def serve(port: int, token: str | None) -> None:
+async def serve(port: int) -> None:
     """Start the WebSocket server."""
     reset_idle_timer()
     shutdown_event = asyncio.Event()
@@ -211,16 +188,12 @@ async def serve(port: int, token: str | None) -> None:
     watchdog = asyncio.create_task(idle_watchdog(shutdown_event))
 
     async with websockets.serve(
-        lambda ws: handler(ws, token),
+        handler,
         "127.0.0.1",
         port,
         process_request=process_request,
     ):
         print(f"[server] Listening on ws://127.0.0.1:{port}")
-        if token:
-            print("[server] Auth enabled")
-        else:
-            print("[server] Auth disabled (no token configured)")
         print(f"[server] PID {os.getpid()} written to {PID_FILE}")
 
         await shutdown_event.wait()
@@ -237,16 +210,10 @@ def main() -> None:
         "--port", type=int, default=DEFAULT_PORT,
         help=f"Port to bind (default: {DEFAULT_PORT})",
     )
-    parser.add_argument(
-        "--token", default=None,
-        help="Auth token (default: from SESSION_TOKEN env var, or disabled)",
-    )
     args = parser.parse_args()
 
-    token = args.token or os.environ.get("SESSION_TOKEN")
-
     try:
-        asyncio.run(serve(args.port, token))
+        asyncio.run(serve(args.port))
     except KeyboardInterrupt:
         _cleanup_pid()
         print("\n[server] Interrupted")

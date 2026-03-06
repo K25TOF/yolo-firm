@@ -218,9 +218,10 @@ class TestRunSession:
         mock.usage = MagicMock(input_tokens=input_tokens, output_tokens=output_tokens)
         return mock
 
+    @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
     def test_question_mode_runs_four_turns(
-        self, mock_create: MagicMock, session_env: dict,
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
     ) -> None:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
@@ -239,9 +240,10 @@ class TestRunSession:
 
         assert mock_client.messages.create.call_count == 4
 
+    @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
     def test_open_mode_sends_meta_question(
-        self, mock_create: MagicMock, session_env: dict,
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
     ) -> None:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
@@ -263,9 +265,10 @@ class TestRunSession:
         user_msg = first_message[0]["content"]
         assert "what question" in user_msg.lower() or "investigate" in user_msg.lower()
 
+    @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
     def test_session_log_created_with_all_turns(
-        self, mock_create: MagicMock, session_env: dict,
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
     ) -> None:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
@@ -308,9 +311,10 @@ class TestRunSession:
             )
         # If we got here without error and no API key, dry run works
 
+    @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
     def test_memory_updates_collected(
-        self, mock_create: MagicMock, session_env: dict,
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
     ) -> None:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
@@ -395,145 +399,3 @@ class TestCheckInterrupt:
         flag.write_text("  pause  \n")
         with patch("session.INTERRUPT_FLAG", flag):
             assert check_interrupt() == "pause"
-
-
-class TestAutoOpenBrowser:
-    """Tests for VS Code Simple Browser auto-open on session start."""
-
-    def _make_stream_mock(self) -> MagicMock:
-        """Create a mock streaming context manager matching Anthropic API."""
-        stream_ctx = MagicMock()
-        stream_obj = MagicMock()
-        stream_obj.text_stream = iter(["Response."])
-        final = MagicMock()
-        final.content = [MagicMock(text="Response.")]
-        final.usage = MagicMock(input_tokens=100, output_tokens=50)
-        stream_obj.get_final_message.return_value = final
-        stream_ctx.__enter__ = MagicMock(return_value=stream_obj)
-        stream_ctx.__exit__ = MagicMock(return_value=False)
-        return stream_ctx
-
-    @patch("session.create_client")
-    @patch("session.subprocess.Popen")
-    @patch("session.ensure_server_running", return_value=True)
-    @patch("session.connect_ws")
-    def test_opens_vscode_browser_with_token(
-        self,
-        mock_connect: MagicMock,
-        mock_ensure: MagicMock,
-        mock_popen: MagicMock,
-        mock_create: MagicMock,
-        session_env: dict,
-    ) -> None:
-        mock_client = MagicMock()
-        mock_create.return_value = mock_client
-        mock_client.messages.stream.return_value = self._make_stream_mock()
-        mock_connect.return_value = MagicMock()
-
-        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
-             patch("session.FIRM_REPO", session_env["firm_repo"]), \
-             patch("session.YOLO_REPO", session_env["yolo_repo"]), \
-             patch.dict("os.environ", {"SESSION_TOKEN": "abc123"}):
-            run_session(
-                question="Test",
-                open_mode=False,
-                model="claude-haiku-4-5-20251001",
-                session_id="browser-test",
-                dry_run=False,
-            )
-
-        mock_popen.assert_called_once()
-        args = mock_popen.call_args[0][0]
-        assert args == ["code", "--open-url", "http://localhost:8003?token=abc123"]
-
-    @patch("session.create_client")
-    @patch("session.subprocess.Popen")
-    @patch("session.ensure_server_running", return_value=True)
-    @patch("session.connect_ws")
-    def test_opens_vscode_browser_without_token(
-        self,
-        mock_connect: MagicMock,
-        mock_ensure: MagicMock,
-        mock_popen: MagicMock,
-        mock_create: MagicMock,
-        session_env: dict,
-    ) -> None:
-        mock_client = MagicMock()
-        mock_create.return_value = mock_client
-        mock_client.messages.stream.return_value = self._make_stream_mock()
-        mock_connect.return_value = MagicMock()
-
-        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
-             patch("session.FIRM_REPO", session_env["firm_repo"]), \
-             patch("session.YOLO_REPO", session_env["yolo_repo"]):
-            import os
-            os.environ.pop("SESSION_TOKEN", None)
-            run_session(
-                question="Test",
-                open_mode=False,
-                model="claude-haiku-4-5-20251001",
-                session_id="browser-test-no-token",
-                dry_run=False,
-            )
-
-        args = mock_popen.call_args[0][0]
-        assert args == ["code", "--open-url", "http://localhost:8003"]
-
-    @patch("session.create_client")
-    @patch("session.subprocess.Popen", side_effect=OSError("not found"))
-    @patch("session.ensure_server_running", return_value=True)
-    @patch("session.connect_ws")
-    def test_oserror_on_popen_does_not_crash(
-        self,
-        mock_connect: MagicMock,
-        mock_ensure: MagicMock,
-        mock_popen: MagicMock,
-        mock_create: MagicMock,
-        session_env: dict,
-    ) -> None:
-        mock_client = MagicMock()
-        mock_create.return_value = mock_client
-        mock_client.messages.stream.return_value = self._make_stream_mock()
-        mock_connect.return_value = MagicMock()
-
-        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
-             patch("session.FIRM_REPO", session_env["firm_repo"]), \
-             patch("session.YOLO_REPO", session_env["yolo_repo"]):
-            # Should not raise
-            run_session(
-                question="Test",
-                open_mode=False,
-                model="claude-haiku-4-5-20251001",
-                session_id="browser-test-oserror",
-                dry_run=False,
-            )
-
-    @pytest.fixture
-    def session_env(self, tmp_path: Path) -> dict:
-        """Create a full agent tree for browser tests."""
-        agents = tmp_path / "agents"
-        agents.mkdir()
-        log_dir = agents / "session-log"
-        log_dir.mkdir()
-
-        for agent in ("manager", "analyst", "engineer"):
-            d = agents / agent
-            d.mkdir()
-            (d / "system-prompt.md").write_text(f"You are {agent.title()}.")
-            (d / "context-manifest.md").write_text(
-                f"# {agent.title()} — Context Manifest\n\n"
-                "## Firm Documents (yolo-firm/)\n\n"
-                "| Document | Path | Purpose |\n"
-                "|---|---|---|\n"
-                "| RACI | `raci.md` | Roles |\n",
-            )
-
-        (tmp_path / "raci.md").write_text("# RACI\nRoles.")
-        (tmp_path / "yolo").mkdir()
-
-        return {
-            "agents_dir": agents,
-            "firm_repo": tmp_path,
-            "yolo_repo": tmp_path / "yolo",
-            "log_dir": log_dir,
-        }

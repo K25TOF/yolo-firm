@@ -511,8 +511,6 @@
 
     /* --- WebSocket connection --- */
     function connect() {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('token');
       const wsUrl = 'ws://' + window.location.host;
 
       statusEl.textContent = 'Connecting...';
@@ -526,9 +524,6 @@
         footerStatus.textContent = 'Waiting for session to start...';
         btnPause.disabled = true;
         btnCancel.disabled = true;
-        if (token) {
-          ws.send(JSON.stringify({ type: 'auth', token: token }));
-        }
       };
 
       ws.onmessage = function (event) {
@@ -543,12 +538,6 @@
       ws.onclose = function (event) {
         ws = null;
         closeBubble();
-        if (event.code === 1008) {
-          statusEl.textContent = 'Authentication failed';
-          statusEl.className = 'error';
-          footerStatus.textContent = 'Auth failed — check token';
-          return;
-        }
         if (sessionActive) {
           statusEl.textContent = 'Disconnected';
           statusEl.className = 'error';

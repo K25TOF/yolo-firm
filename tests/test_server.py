@@ -1,4 +1,4 @@
-"""Unit tests for agents/server.py — WebSocket server auth, broadcast, lifecycle."""
+"""Unit tests for agents/server.py — WebSocket server broadcast, lifecycle."""
 
 import asyncio
 import json
@@ -12,54 +12,12 @@ from server import (
     CHAT_UI_PATH,
     CONNECTED_CLIENTS,
     MESSAGE_BUFFER,
-    authenticate,
     broadcast,
     handle_command,
     handler,
     process_request,
     reset_idle_timer,
 )
-
-
-class TestAuthenticate:
-    """Tests for WebSocket connection authentication."""
-
-    def test_valid_token_accepted(self) -> None:
-        ws = AsyncMock()
-        ws.recv = AsyncMock(return_value=json.dumps({"type": "auth", "token": "secret"}))
-
-        result = asyncio.run(authenticate(ws, "secret"))
-        assert result is True
-
-    def test_invalid_token_rejected(self) -> None:
-        ws = AsyncMock()
-        ws.recv = AsyncMock(return_value=json.dumps({"type": "auth", "token": "wrong"}))
-
-        result = asyncio.run(authenticate(ws, "secret"))
-        assert result is False
-        ws.close.assert_called()
-
-    def test_no_token_configured_accepts_all(self) -> None:
-        ws = AsyncMock()
-        # When token is None, auth is disabled — no recv needed
-        result = asyncio.run(authenticate(ws, None))
-        assert result is True
-
-    def test_malformed_auth_message_rejected(self) -> None:
-        ws = AsyncMock()
-        ws.recv = AsyncMock(return_value="not json")
-
-        result = asyncio.run(authenticate(ws, "secret"))
-        assert result is False
-        ws.close.assert_called()
-
-    def test_missing_token_field_rejected(self) -> None:
-        ws = AsyncMock()
-        ws.recv = AsyncMock(return_value=json.dumps({"type": "auth"}))
-
-        result = asyncio.run(authenticate(ws, "secret"))
-        assert result is False
-        ws.close.assert_called()
 
 
 class TestBroadcast:
@@ -310,7 +268,7 @@ class TestMessageBuffer:
 
         ws = self._make_ws()
 
-        asyncio.run(handler(ws, token=None))
+        asyncio.run(handler(ws))
 
         # Should have received 2 replayed messages
         assert ws.send.call_count == 2
@@ -326,7 +284,7 @@ class TestMessageBuffer:
         ws = self._make_ws()
         ws.send = AsyncMock(side_effect=Exception("broken"))
 
-        asyncio.run(handler(ws, token=None))
+        asyncio.run(handler(ws))
 
         assert ws not in CONNECTED_CLIENTS
 
@@ -334,6 +292,6 @@ class TestMessageBuffer:
         """Client connecting with empty buffer gets no replay messages."""
         ws = self._make_ws()
 
-        asyncio.run(handler(ws, token=None))
+        asyncio.run(handler(ws))
 
         ws.send.assert_not_called()

@@ -1,0 +1,13 @@
+{
+  "statusBarItems": [
+    {
+      "id": "chatUI",
+      "text": "$(comment-discussion) Chat UI",
+      "tooltip": "Open Chat UI in Simple Browser (localhost:8003)",
+      "command": "workbench.action.tasks.runTask",
+      "arguments": ["Open Chat UI"],
+      "alignment": "right",
+      "priority": 100
+    }
+  ]
+}
