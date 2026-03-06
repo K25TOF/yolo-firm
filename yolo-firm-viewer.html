@@ -507,7 +507,7 @@ Build a fully autonomous US stock trading system that generates consistent absol
 4.1 Scanner · 4.2 Watchlist · 4.3 Analyst · 4.4 Observer · 4.5 Monitor · 4.6 Trader + Safety Rails · 4.7 Pipeline Orchestrator · 4.8 Smart Rejection
 
 ### 🔧 Phase 5 — Triple Loop (Learning)
-- 5.1–5.3d — Backtesting engine (complete, 25 indicators)
+- 5.1–5.3d — Backtesting engine (complete, 24 indicators)
 - 5.4 🔲 Agent Definitions (Manager, Analyst, Engineer)
 - 5.5 🔲 Session log + communication protocol
 - 5.6 🔲 Manager-led learning cycle
@@ -536,7 +536,7 @@ Strategy validated → real capital deployment. Security hardening, capital poli
 - **Experiments completed:** EXP-001 to EXP-023
 - **Active strategy:** vol_filter v2.1.0 (skip-first variant)
 - **Book extraction:** Pass 1 TOC complete (~800 books), Pass 2 ~65 books extracted
-- **Indicators available:** 25 registered in backtester
+- **Indicators available:** 24 registered in backtester
 - **Next experiment focus:** Grinder strategy (IDEA-016), book-derived hypotheses\`;
 
 DOCS['kpis'] = \`# KPI Framework
@@ -756,10 +756,10 @@ _Owner: Boardroom | Approved by: PO | Version: 1.0_
 | Container | Purpose | Port |
 |---|---|---|
 | yolo-dev | Test & PO review | — |
-| yolo-dashboard | Live watchlist monitoring | 127.0.0.1:8001 |
+| yolo-dashboard | Live watchlist monitoring | — |
 | yolo-paper | Paper trading (live pipeline) | — |
 
-Port ranges: DEV 8001–8099 · PRD 8100–8199
+Port ranges: DEV 8001–8099 · PRD 8100–8199 (assigned at runtime, not in compose)
 
 ---
 
@@ -767,9 +767,9 @@ Port ranges: DEV 8001–8099 · PRD 8100–8199
 
 **Layer 0 — API Clients:** T212Client · PolygonClient · PolygonWsFeed · AnthropicClient
 
-**Layer 1 — Data Stores:** WatchlistService (SQLite + in-memory) · JournalService (SQLite) · DDBot (Haiku)
+**Layer 1 — Data Stores:** WatchlistService (SQLite + in-memory) · Journal (SQLite) · DDBot (Haiku)
 
-**Layer 2 — Data Pipeline:** PositionMonitor (5s) · CandleEngine (1-min/5-min) · RiskProfileService · MarketScanner (2-stage)
+**Layer 2 — Data Pipeline:** PositionMonitor (5s) · CandleEngine (1-min/5-min) · RiskProfile · MarketScanner (2-stage)
 
 **Layer 3 — Exit Pipeline:** TradingEngine · StrategyBrain (Sonnet, optional) · OrderManager
 
@@ -789,7 +789,7 @@ Polygon Snapshot
   → TraderService (5 safety rails) → T212 order → [HOLDING]
   → TradingEngine (1s loop) + StrategyBrain (5-min, optional)
   → OrderManager → T212 sell
-  → JournalService [CLOSED]
+  → Journal [CLOSED]
 \\\`\\\`\\\`
 
 ---
@@ -808,13 +808,13 @@ Polygon Snapshot
 
 \\\`\\\`\\\`
 analysis/
-├── backtester/     # BacktestEngine, 25 indicators, strategy, data, reports
+├── backtester/     # BacktestEngine, 24 indicators, strategy, data, reports
 ├── research/       # research-log.md, strategies.json, ideas.md
 ├── cache/          # Polygon bar cache
 └── results/        # Backtest CSV output
 \\\`\\\`\\\`
 
-**25 indicators:** ema, sma, rsi, macd_histogram, bb_upper, bb_lower, vwap_session, atr, ema_gap, volume_ratio, volume_ratio_ema, vwap_distance, price_change_pct, spread_ratio, bb_width, kc_width, squeeze_on, squeeze_momentum, force_index_2, force_index_13, kama, ib_high, ib_low, ib_range
+**24 indicators:** ema, sma, rsi, macd_histogram, bb_upper, bb_lower, vwap_session, atr, ema_gap, volume_ratio, volume_ratio_ema, vwap_distance, price_change_pct, spread_ratio, bb_width, kc_width, squeeze_on, squeeze_momentum, force_index_2, force_index_13, kama, ib_high, ib_low, ib_range
 
 ---
 
@@ -826,7 +826,7 @@ analysis/
 | Unit tests | 989 |
 | BDD scenarios | 109 |
 | Regression tests | 7 |
-| Registered indicators | 25 |
+| Registered indicators | 24 |
 | Core services | 15 |
 | External APIs | 3 |
 | CLI commands | 14 |

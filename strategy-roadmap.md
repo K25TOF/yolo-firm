@@ -80,7 +80,7 @@ TradingEngine, StrategyBrain, OrderManager, safety rails.
 5.3a — Engine Rebuild — clean BacktestEngine class
 5.3b — VWAP, RSI, Spread Ratio, snapshot CSV
 5.3c — TTM Squeeze, Force Index, KAMA
-5.3d — Volume Decay exit, Initial Balance
+5.3d — Volume Decay exit, Initial Balance (24 indicators)
 5.4 🔲 Agent Definitions (Manager, Analyst, Engineer)
 5.5 🔲 Session log + communication protocol
 5.6 🔲 Manager-led learning cycle
@@ -113,5 +113,5 @@ Security hardening, capital policy, position sizing.
 - **Experiments completed:** EXP-001 to EXP-023
 - **Active strategy:** vol_filter v2.1.0 (skip-first variant)
 - **Book extraction:** Pass 1 TOC complete (~800 books), Pass 2 ~65 books extracted
-- **Indicators available:** 25 registered in backtester
+- **Indicators available:** 24 registered in backtester
 - **Next experiment focus:** Grinder strategy (IDEA-016), book-derived hypotheses
