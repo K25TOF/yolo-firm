@@ -373,6 +373,7 @@ const SECTIONS = [
   { id: 'incident-management', label: 'Incident Mgmt', icon: '◗', meta: 'Playbooks & response' },
   { id: 'architecture', label: 'Architecture', icon: '⬡', meta: 'System landscape' },
   { id: 'costs-live', label: 'Live Costs', icon: '◉', meta: 'API usage from journal' },
+  { id: 'agents', label: 'Agents', icon: '◬', meta: 'Org Learning definitions', path: 'agents/README.md' },
 ];
 
 // Build nav
@@ -398,7 +399,8 @@ async function loadSection(id) {
   content.innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
 
   try {
-    const res = await fetch(`/docs/${id}.md`);
+    const docPath = section.path || `${id}.md`;
+    const res = await fetch(`/docs/${docPath}`);
     if (!res.ok) throw new Error(`${id}.md not found (${res.status})`);
     const md = await res.text();
     content.innerHTML = marked.parse(md);
