@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
   <title>YOLO Org Learning</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,15 +23,17 @@
       --manager: #00d4aa;
       --analyst: #7c6af7;
       --engineer: #f0a050;
-      --system: #6b6b8a;
-      --po: #e0e0f0;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html, body {
+      background: var(--bg) !important;
+      color-scheme: dark !important;
+    }
+
     body {
       font-family: 'IBM Plex Sans', sans-serif;
-      background: var(--bg);
       color: var(--text);
       height: 100vh;
       display: flex;
@@ -41,7 +44,7 @@
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 6px 20px;
+      padding: 5px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -50,7 +53,7 @@
 
     header h1 {
       font-family: 'IBM Plex Mono', monospace;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--accent);
       letter-spacing: 0.5px;
@@ -61,52 +64,48 @@
       font-size: 11px;
       color: var(--muted);
     }
-
     #status.connected { color: var(--accent); }
     #status.error { color: var(--error); }
 
     #chat {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 20px;
+      padding: 6px 0;
       display: flex;
       flex-direction: column;
-      gap: 2px;
     }
 
-    .system-msg {
-      text-align: center;
-      font-style: italic;
+    /* --- System messages: IRC join/part style --- */
+    .sys {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
       color: var(--muted);
-      font-size: 12px;
-      padding: 8px 0;
+      text-align: center;
+      padding: 2px 16px;
+      line-height: 1.4;
     }
-
-    .system-msg.banner {
-      background: rgba(0, 212, 170, 0.08);
-      border: 1px solid rgba(0, 212, 170, 0.2);
-      border-radius: 6px;
-      padding: 12px;
-      margin: 8px 0;
-      font-style: normal;
-      font-weight: 500;
+    .sys.banner {
       color: var(--accent);
+      font-weight: 500;
+      font-size: 11px;
+      padding: 6px 16px;
     }
 
-    .bubble {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.4rem 0.6rem;
-      margin-top: 0.3rem;
-      max-width: 100%;
+    /* --- Turn block: left-border colored bar --- */
+    .turn {
+      border-left: 3px solid var(--muted);
+      margin: 6px 0 0;
+      padding: 0 12px 0 10px;
     }
+    .turn.manager { border-left-color: var(--manager); }
+    .turn.analyst { border-left-color: var(--analyst); }
+    .turn.engineer { border-left-color: var(--engineer); }
 
-    .bubble-header {
+    .turn-header {
       display: flex;
       align-items: baseline;
       gap: 8px;
-      margin-bottom: 3px;
+      padding-bottom: 2px;
     }
 
     .speaker {
@@ -116,42 +115,36 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-
     .speaker.manager { color: var(--manager); }
     .speaker.analyst { color: var(--analyst); }
     .speaker.engineer { color: var(--engineer); }
-    .speaker.po { color: var(--po); }
-    .speaker.system { color: var(--system); }
 
-    .timestamp {
+    .ts {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 10px;
       color: var(--muted);
     }
 
-    .bubble-content {
+    .turn-body {
       font-size: 13px;
       line-height: 1.4;
       white-space: pre-wrap;
       word-wrap: break-word;
     }
-
-    .bubble-content p { margin: 0.4em 0; }
-    .bubble-content p:first-child { margin-top: 0; }
-    .bubble-content p:last-child { margin-bottom: 0; }
-    .bubble-content h1, .bubble-content h2, .bubble-content h3 {
+    .turn-body p { margin: 0.3em 0; }
+    .turn-body p:first-child { margin-top: 0; }
+    .turn-body p:last-child { margin-bottom: 0; }
+    .turn-body h1, .turn-body h2, .turn-body h3 {
       font-family: 'IBM Plex Mono', monospace;
       color: var(--accent);
-      margin: 0.6em 0 0.3em;
+      margin: 0.5em 0 0.2em;
       font-size: 13px;
     }
-    .bubble-content h1 { font-size: 15px; }
-    .bubble-content h2 { font-size: 14px; }
-    .bubble-content ul, .bubble-content ol {
-      padding-left: 1.5em;
-      margin: 0.3em 0;
-    }
-    .bubble-content code {
+    .turn-body h1 { font-size: 14px; }
+    .turn-body h2 { font-size: 13px; color: var(--accent2); }
+    .turn-body ul, .turn-body ol { padding-left: 1.4em; margin: 0.2em 0; }
+    .turn-body li { margin: 0.1em 0; }
+    .turn-body code {
       background: rgba(124, 106, 247, 0.12);
       color: var(--accent);
       padding: 1px 4px;
@@ -159,64 +152,47 @@
       font-family: 'IBM Plex Mono', monospace;
       font-size: 12px;
     }
-    .bubble-content pre {
+    .turn-body pre {
       background: #0d0d18;
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 8px;
+      padding: 6px;
       overflow-x: auto;
-      margin: 0.4em 0;
+      margin: 0.3em 0;
     }
-    .bubble-content pre code {
-      background: none;
-      padding: 0;
-    }
-    .bubble-content strong { color: var(--text); }
-    .bubble-content blockquote {
-      border-left: 3px solid var(--accent2);
-      padding-left: 12px;
+    .turn-body pre code { background: none; padding: 0; }
+    .turn-body strong { color: var(--text); }
+    .turn-body em { color: var(--muted); }
+    .turn-body blockquote {
+      border-left: 2px solid var(--accent2);
+      padding-left: 10px;
       color: var(--muted);
       font-style: italic;
-      margin: 0.4em 0;
+      margin: 0.3em 0;
     }
-    .bubble-content table {
-      border-collapse: collapse;
-      margin: 0.4em 0;
-      font-size: 12px;
-    }
-    .bubble-content th, .bubble-content td {
-      border: 1px solid var(--border);
-      padding: 4px 8px;
-    }
-    .bubble-content th {
-      background: rgba(124, 106, 247, 0.08);
-      font-weight: 600;
-    }
+    .turn-body table { border-collapse: collapse; margin: 0.3em 0; font-size: 12px; }
+    .turn-body th, .turn-body td { border: 1px solid var(--border); padding: 3px 6px; }
+    .turn-body th { background: rgba(124, 106, 247, 0.08); font-weight: 600; }
 
-    .bubble.manager { border-left: 3px solid var(--manager); }
-    .bubble.analyst { border-left: 3px solid var(--analyst); }
-    .bubble.engineer { border-left: 3px solid var(--engineer); }
+    .turn-cost {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 3px;
+      opacity: 0.7;
+    }
 
     .cursor {
       display: inline;
       animation: blink 0.8s step-end infinite;
       color: var(--accent);
     }
-    @keyframes blink {
-      50% { opacity: 0; }
-    }
-
-    .cost-line {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
-      color: var(--muted);
-      padding: 2px 16px 0;
-    }
+    @keyframes blink { 50% { opacity: 0; } }
 
     footer {
       background: var(--surface);
       border-top: 1px solid var(--border);
-      padding: 6px 20px;
+      padding: 5px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -229,15 +205,11 @@
       color: var(--muted);
     }
 
-    .controls {
-      display: flex;
-      gap: 8px;
-    }
-
+    .controls { display: flex; gap: 8px; }
     .controls button {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 11px;
-      padding: 6px 14px;
+      padding: 4px 12px;
       border: 1px solid var(--border);
       border-radius: 4px;
       cursor: pointer;
@@ -245,38 +217,17 @@
       background: var(--surface);
       color: var(--text);
     }
-
-    .controls button:hover {
-      background: rgba(224, 224, 240, 0.08);
-    }
-
-    #btn-pause {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
+    .controls button:hover { background: rgba(224, 224, 240, 0.08); }
+    #btn-pause { border-color: var(--accent); color: var(--accent); }
     #btn-pause:hover { background: rgba(0, 212, 170, 0.1); }
-    #btn-pause.paused {
-      background: rgba(0, 212, 170, 0.15);
-      color: var(--accent);
-    }
-
-    #btn-cancel {
-      border-color: var(--error);
-      color: var(--error);
-    }
+    #btn-pause.paused { background: rgba(0, 212, 170, 0.15); }
+    #btn-cancel { border-color: var(--error); color: var(--error); }
     #btn-cancel:hover { background: rgba(224, 80, 80, 0.1); }
-
-    .controls button:disabled {
-      opacity: 0.3;
-      cursor: default;
-    }
+    .controls button:disabled { opacity: 0.3; cursor: default; }
 
     #chat::-webkit-scrollbar { width: 6px; }
     #chat::-webkit-scrollbar-track { background: transparent; }
-    #chat::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 3px;
-    }
+    #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -296,11 +247,10 @@
   </footer>
 
   <script>
-    /* --- State --- */
     let ws = null;
     let currentSpeaker = null;
-    let currentBubble = null;
-    let currentContent = null;
+    let currentTurn = null;
+    let currentBody = null;
     let rawText = '';
     let isPaused = false;
     let sessionActive = false;
@@ -312,7 +262,6 @@
     const btnPause = document.getElementById('btn-pause');
     const btnCancel = document.getElementById('btn-cancel');
 
-    /* --- Markdown rendering --- */
     function renderMarkdown(text) {
       if (typeof marked !== 'undefined') {
         try { return marked.parse(text); } catch (e) { /* fallback */ }
@@ -326,125 +275,108 @@
       return d.innerHTML;
     }
 
-    /* --- Speaker colors --- */
-    const speakerColors = {
-      manager: 'manager', analyst: 'analyst', engineer: 'engineer',
-      po: 'po', system: 'system',
-    };
-
-    function speakerClass(name) {
-      return speakerColors[name] || 'system';
-    }
-
-    /* --- Timestamp --- */
     function timestamp() {
       const now = new Date();
       return [now.getHours(), now.getMinutes(), now.getSeconds()]
         .map(n => String(n).padStart(2, '0')).join(':');
     }
 
-    /* --- Auto-scroll --- */
     chat.addEventListener('scroll', () => {
       const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40;
       userScrolled = !atBottom;
     });
 
     function scrollToBottom() {
-      if (!userScrolled) {
-        chat.scrollTop = chat.scrollHeight;
-      }
+      if (!userScrolled) chat.scrollTop = chat.scrollHeight;
     }
 
-    /* --- UI helpers --- */
-    function addSystemMessage(text, isBanner) {
-      closeBubble();
+    function addSys(text, isBanner) {
+      closeTurn();
       const div = document.createElement('div');
-      div.className = 'system-msg' + (isBanner ? ' banner' : '');
+      div.className = 'sys' + (isBanner ? ' banner' : '');
       div.textContent = text;
       chat.appendChild(div);
       scrollToBottom();
     }
 
-    function openBubble(speaker) {
-      closeBubble();
+    function openTurn(speaker) {
+      closeTurn();
       currentSpeaker = speaker;
       rawText = '';
 
-      const bubble = document.createElement('div');
-      bubble.className = 'bubble ' + speakerClass(speaker);
+      const turn = document.createElement('div');
+      turn.className = 'turn ' + speaker;
 
-      const header = document.createElement('div');
-      header.className = 'bubble-header';
+      const hdr = document.createElement('div');
+      hdr.className = 'turn-header';
 
       const label = document.createElement('span');
-      label.className = 'speaker ' + speakerClass(speaker);
+      label.className = 'speaker ' + speaker;
       label.textContent = speaker.charAt(0).toUpperCase() + speaker.slice(1);
 
       const ts = document.createElement('span');
-      ts.className = 'timestamp';
+      ts.className = 'ts';
       ts.textContent = timestamp();
 
-      header.appendChild(label);
-      header.appendChild(ts);
-      bubble.appendChild(header);
+      hdr.appendChild(label);
+      hdr.appendChild(ts);
+      turn.appendChild(hdr);
 
-      const content = document.createElement('div');
-      content.className = 'bubble-content';
-      bubble.appendChild(content);
+      const body = document.createElement('div');
+      body.className = 'turn-body';
+      turn.appendChild(body);
 
-      chat.appendChild(bubble);
-      currentBubble = bubble;
-      currentContent = content;
+      chat.appendChild(turn);
+      currentTurn = turn;
+      currentBody = body;
     }
 
-    function closeBubble() {
-      if (currentContent && rawText) {
-        /* Remove cursor, render final markdown */
-        currentContent.innerHTML = renderMarkdown(rawText);
+    function closeTurn() {
+      if (currentBody && rawText) {
+        currentBody.innerHTML = renderMarkdown(rawText);
       }
       currentSpeaker = null;
-      currentBubble = null;
-      currentContent = null;
+      currentTurn = null;
+      currentBody = null;
       rawText = '';
     }
 
     function appendToken(speaker, delta) {
-      if (speaker !== currentSpeaker) {
-        openBubble(speaker);
-      }
+      if (speaker !== currentSpeaker) openTurn(speaker);
       rawText += delta;
-      /* Show raw text with cursor during streaming */
-      currentContent.innerHTML = escapeHtml(rawText) + '<span class="cursor">▌</span>';
+      currentBody.innerHTML = escapeHtml(rawText) + '<span class="cursor">▌</span>';
       scrollToBottom();
     }
 
-    function addCostLine(text) {
-      closeBubble();
-      const div = document.createElement('div');
-      div.className = 'cost-line';
-      div.textContent = text;
-      chat.appendChild(div);
+    function addCost(text) {
+      closeTurn();
+      const turns = chat.querySelectorAll('.turn');
+      const lastTurn = turns[turns.length - 1];
+      if (lastTurn) {
+        const cost = document.createElement('div');
+        cost.className = 'turn-cost';
+        cost.textContent = text;
+        lastTurn.appendChild(cost);
+      }
     }
 
-    function addCompleteBubble(speaker, text) {
-      closeBubble();
-      openBubble(speaker);
+    function addCompleteTurn(speaker, text) {
+      closeTurn();
+      openTurn(speaker);
       rawText = text;
-      closeBubble();
+      closeTurn();
       scrollToBottom();
     }
 
-    /* --- Session end --- */
     function endSession(label) {
-      closeBubble();
+      closeTurn();
       sessionActive = false;
-      addSystemMessage(label || 'Session complete', true);
+      addSys(label || 'Session complete', true);
       btnPause.disabled = true;
       btnCancel.disabled = true;
       footerStatus.textContent = label || 'Session complete';
     }
 
-    /* --- Controls --- */
     function togglePause() {
       if (!ws || !sessionActive) return;
       if (isPaused) {
@@ -466,7 +398,6 @@
       ws.send(JSON.stringify({ type: 'cancel' }));
     }
 
-    /* --- Message dispatch --- */
     function handleMessage(data) {
       switch (data.type) {
         case 'system': {
@@ -478,41 +409,27 @@
             btnCancel.disabled = false;
             footerStatus.textContent = 'Session active';
           }
-          if (lower.includes('session complete')) {
-            endSession('Session complete');
-            return;
-          }
-          if (lower.includes('session cancelled')) {
-            endSession('Session cancelled');
-            return;
-          }
-          if (lower.includes('session paused')) {
-            footerStatus.textContent = 'Paused';
-          }
-          if (lower.includes('session resumed')) {
-            footerStatus.textContent = 'Session active';
-          }
-          addSystemMessage(content, false);
+          if (lower.includes('session complete')) { endSession('Session complete'); return; }
+          if (lower.includes('session cancelled')) { endSession('Session cancelled'); return; }
+          if (lower.includes('session paused')) footerStatus.textContent = 'Paused';
+          if (lower.includes('session resumed')) footerStatus.textContent = 'Session active';
+          addSys(content, lower.includes('session') && lower.includes('started'));
           break;
         }
         case 'token':
           appendToken(data.speaker, data.content);
           break;
         case 'cost':
-          addCostLine(data.content);
+          addCost(data.content);
           break;
         case 'message':
-          addCompleteBubble(data.speaker, data.content);
-          break;
-        default:
+          addCompleteTurn(data.speaker, data.content);
           break;
       }
     }
 
-    /* --- WebSocket connection --- */
     function connect() {
       const wsUrl = 'ws://' + window.location.host;
-
       statusEl.textContent = 'Connecting...';
       statusEl.className = '';
 
@@ -521,23 +438,18 @@
       ws.onopen = function () {
         statusEl.textContent = 'Connected';
         statusEl.className = 'connected';
-        footerStatus.textContent = 'Waiting for session to start...';
+        footerStatus.textContent = 'Waiting for session...';
         btnPause.disabled = true;
         btnCancel.disabled = true;
       };
 
       ws.onmessage = function (event) {
-        try {
-          const data = JSON.parse(event.data);
-          handleMessage(data);
-        } catch (e) {
-          /* ignore parse errors */
-        }
+        try { handleMessage(JSON.parse(event.data)); } catch (e) { /* ignore */ }
       };
 
-      ws.onclose = function (event) {
+      ws.onclose = function () {
         ws = null;
-        closeBubble();
+        closeTurn();
         if (sessionActive) {
           statusEl.textContent = 'Disconnected';
           statusEl.className = 'error';
@@ -556,7 +468,6 @@
       };
     }
 
-    /* --- Init --- */
     connect();
   </script>
 </body>

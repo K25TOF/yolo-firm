@@ -1,0 +1,7 @@
+[
+  {
+    "key": "cmd+shift+h",
+    "command": "simpleBrowser.show",
+    "args": ["http://localhost:8003"]
+  }
+]

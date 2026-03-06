@@ -1,14 +1,11 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Open Chat UI",
-      "type": "shell",
-      "command": "code --open-url http://localhost:8003",
-      "presentation": {
-        "reveal": "never"
-      },
-      "problemMatcher": []
-    }
-  ]
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "openMyBrowser",
+            "command": "${command:simpleBrowser.show}",
+            "args": ["http://127.0.0.1:8003"],
+            "problemMatcher": []
+        }
+    ]
 }
