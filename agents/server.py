@@ -25,6 +25,9 @@ from websockets.http11 import Response
 # Connected clients set — shared across handlers
 CONNECTED_CLIENTS: set = set()
 
+# In-memory message buffer — replayed to late-joining clients
+MESSAGE_BUFFER: list[dict] = []
+
 # Idle timer state
 _last_activity: float = time.monotonic()
 IDLE_TIMEOUT_SECONDS = 30 * 60  # 30 minutes
@@ -111,8 +114,19 @@ async def authenticate(websocket: object, token: str | None) -> bool:
 async def broadcast(message: dict) -> None:
     """Send a message to all connected clients.
 
+    Appends to MESSAGE_BUFFER for late-joining replay.
+    Clears buffer on "Session complete" system message.
     Removes clients that fail to receive (disconnected).
     """
+    MESSAGE_BUFFER.append(message)
+
+    # Clear buffer when session ends
+    if (
+        message.get("type") == "system"
+        and message.get("content") == "Session complete"
+    ):
+        MESSAGE_BUFFER.clear()
+
     if not CONNECTED_CLIENTS:
         return
 
@@ -136,6 +150,14 @@ async def handler(websocket: object, token: str | None) -> None:
     CONNECTED_CLIENTS.add(websocket)
     remote = getattr(websocket, "remote_address", ("unknown",))
     print(f"[server] Client connected: {remote}")
+
+    # Replay buffered messages so late-joining clients see session history
+    for msg in MESSAGE_BUFFER.copy():
+        try:
+            await websocket.send(json.dumps(msg))
+        except Exception:
+            CONNECTED_CLIENTS.discard(websocket)
+            return
 
     try:
         async for raw in websocket:

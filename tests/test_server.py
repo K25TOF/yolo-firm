@@ -11,9 +11,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
 from server import (
     CHAT_UI_PATH,
     CONNECTED_CLIENTS,
+    MESSAGE_BUFFER,
     authenticate,
     broadcast,
     handle_command,
+    handler,
     process_request,
     reset_idle_timer,
 )
@@ -251,3 +253,87 @@ class TestHandleCommand:
             assert result is True  # still handled, just no file to delete
         finally:
             server.INTERRUPT_FLAG = original
+
+
+class TestMessageBuffer:
+    """Tests for in-memory message buffer: append, replay, and clear."""
+
+    def setup_method(self) -> None:
+        """Clear buffer and clients before each test."""
+        MESSAGE_BUFFER.clear()
+        CONNECTED_CLIENTS.clear()
+
+    def test_broadcast_appends_to_buffer(self) -> None:
+        msg = {"type": "token", "speaker": "analyst", "content": "hello"}
+        asyncio.run(broadcast(msg))
+        assert len(MESSAGE_BUFFER) == 1
+        assert MESSAGE_BUFFER[0] == msg
+
+    def test_buffer_accumulates_messages(self) -> None:
+        msgs = [
+            {"type": "system", "speaker": "system", "content": "Session started"},
+            {"type": "token", "speaker": "manager", "content": "Hello"},
+            {"type": "token", "speaker": "analyst", "content": "World"},
+        ]
+        for m in msgs:
+            asyncio.run(broadcast(m))
+        assert len(MESSAGE_BUFFER) == 3
+
+    def test_session_complete_clears_buffer(self) -> None:
+        asyncio.run(broadcast({"type": "token", "speaker": "manager", "content": "hi"}))
+        asyncio.run(broadcast({"type": "system", "speaker": "system", "content": "Session complete"}))
+        assert len(MESSAGE_BUFFER) == 0
+
+    def test_non_session_complete_system_msg_keeps_buffer(self) -> None:
+        asyncio.run(broadcast({"type": "system", "speaker": "system", "content": "Session started"}))
+        asyncio.run(broadcast({"type": "system", "speaker": "system", "content": "Turn: analyst"}))
+        assert len(MESSAGE_BUFFER) == 2
+
+    def _make_ws(self, messages: list[str] | None = None) -> AsyncMock:
+        """Create a mock WebSocket with async iteration support."""
+        ws = AsyncMock()
+        items = messages or []
+
+        async def _aiter(self_ws):
+            for m in items:
+                yield m
+
+        ws.__aiter__ = _aiter
+        return ws
+
+    def test_replay_buffer_to_new_client(self) -> None:
+        """Late-joining client receives all buffered messages."""
+        MESSAGE_BUFFER.extend([
+            {"type": "system", "speaker": "system", "content": "Session started"},
+            {"type": "token", "speaker": "manager", "content": "Hello"},
+        ])
+
+        ws = self._make_ws()
+
+        asyncio.run(handler(ws, token=None))
+
+        # Should have received 2 replayed messages
+        assert ws.send.call_count == 2
+        first_msg = json.loads(ws.send.call_args_list[0][0][0])
+        assert first_msg["content"] == "Session started"
+        second_msg = json.loads(ws.send.call_args_list[1][0][0])
+        assert second_msg["content"] == "Hello"
+
+    def test_replay_failure_disconnects_client(self) -> None:
+        """Client that fails during replay is removed from CONNECTED_CLIENTS."""
+        MESSAGE_BUFFER.append({"type": "token", "speaker": "a", "content": "x"})
+
+        ws = self._make_ws()
+        ws.send = AsyncMock(side_effect=Exception("broken"))
+
+        asyncio.run(handler(ws, token=None))
+
+        assert ws not in CONNECTED_CLIENTS
+
+    def test_empty_buffer_no_replay(self) -> None:
+        """Client connecting with empty buffer gets no replay messages."""
+        ws = self._make_ws()
+
+        asyncio.run(handler(ws, token=None))
+
+        ws.send.assert_not_called()

@@ -434,9 +434,18 @@ def run_session(
             print("[session] Connected to WebSocket server")
         session_token = os.environ.get("SESSION_TOKEN")
         if session_token:
-            print(f"Chat UI → http://localhost:8003?token={session_token}")
+            url = f"http://localhost:8003?token={session_token}"
         else:
-            print("Chat UI → http://localhost:8003")
+            url = "http://localhost:8003"
+        print(f"Chat UI → {url}")
+        try:
+            subprocess.Popen(
+                ["code", "--open-url", url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            pass  # VS Code CLI not available — non-critical
 
     def _invoke(agent, message, prompt, docs, mem, transcript=""):
         """Invoke agent — streaming if WS connected, blocking otherwise."""
