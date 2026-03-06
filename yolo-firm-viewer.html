@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YOLO — Operating Model</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #00d4aa;
+    --accent2: #7c6af7;
+    --text: #e0e0f0;
+    --muted: #6b6b8a;
+    --warning: #f0a050;
+    --nav-w: 220px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* SIDEBAR */
+  nav {
+    width: var(--nav-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 100;
+  }
+
+  .nav-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .nav-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .nav-links {
+    padding: 16px 0;
+    flex: 1;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    user-select: none;
+  }
+
+  .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+
+  .nav-link.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(0, 212, 170, 0.06);
+  }
+
+  .nav-icon { font-size: 14px; width: 16px; text-align: center; }
+
+  .nav-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* MAIN */
+  main {
+    margin-left: var(--nav-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .topbar-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .topbar-meta {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .badge-green { background: rgba(0,212,170,0.15); color: var(--accent); }
+  .badge-purple { background: rgba(124,106,247,0.15); color: var(--accent2); }
+
+  .content {
+    padding: 40px;
+    max-width: 900px;
+    line-height: 1.7;
+  }
+
+  /* MARKDOWN STYLES */
+  .content h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .content h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 32px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .content h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin: 20px 0 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  .content h4 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--warning);
+    margin: 16px 0 6px;
+  }
+
+  .content p {
+    margin-bottom: 12px;
+    color: #c0c0d8;
+  }
+
+  .content em {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .content strong { color: var(--text); font-weight: 600; }
+
+  .content ul, .content ol {
+    margin: 8px 0 12px 20px;
+    color: #c0c0d8;
+  }
+
+  .content li { margin-bottom: 4px; }
+
+  .content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+
+  .content th {
+    background: rgba(0,212,170,0.08);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .content td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(30,30,46,0.8);
+    color: #c0c0d8;
+    vertical-align: top;
+  }
+
+  .content tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .content code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: rgba(124,106,247,0.12);
+    color: var(--accent2);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .content pre {
+    background: #0d0d18;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+
+  .content pre code {
+    background: none;
+    color: #9090c0;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  .content blockquote {
+    border-left: 3px solid var(--accent2);
+    padding-left: 16px;
+    margin: 12px 0;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* STATUS BAR */
+  .statusbar {
+    position: fixed;
+    bottom: 0;
+    left: var(--nav-w);
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 40px;
+    display: flex;
+    gap: 24px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .status-item { display: flex; gap: 6px; align-items: center; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .status-dot.warn { background: var(--warning); }
+  .status-val { color: var(--text); }
+
+  /* LOADING */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    gap: 10px;
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-header">
+    <div class="nav-logo">YOLO</div>
+    <div class="nav-sub">Operating Model v1.0</div>
+  </div>
+  <div class="nav-links" id="navLinks"></div>
+  <div class="nav-footer">K25TOF · PRD v0.13.0</div>
+</nav>
+
+<main>
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">—</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="badge badge-green">DEMO MODE</span>
+      <span class="badge badge-purple">Phase 5</span>
+      <span class="topbar-meta" id="topbarMeta"></span>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="loading"><div class="spinner"></div>Loading...</div>
+  </div>
+
+  <div style="height:40px"></div>
+</main>
+
+<div class="statusbar">
+  <div class="status-item"><div class="status-dot"></div><span>Pipeline</span><span class="status-val">paper trading</span></div>
+  <div class="status-item"><div class="status-dot"></div><span>Strategy</span><span class="status-val">vol_filter v2.1.0</span></div>
+  <div class="status-item"><div class="status-dot warn"></div><span>Live trading</span><span class="status-val">not yet approved</span></div>
+  <div class="status-item"><div class="status-dot"></div><span>Tests</span><span class="status-val">989 unit · 109 BDD · 7 regression</span></div>
+</div>
+
+<script>
+const SECTIONS = [
+  { id: 'raci', label: 'RACI', icon: '◈', meta: 'Roles & responsibilities' },
+  { id: 'strategy-roadmap', label: 'Strategy & Roadmap', icon: '◇', meta: 'Vision, phases, backlog' },
+  { id: 'kpis', label: 'KPI Framework', icon: '◣', meta: 'Performance metrics' },
+  { id: 'risk-policy', label: 'Risk Policy', icon: '◉', meta: 'Limits, gates, compliance' },
+  { id: 'architecture', label: 'Architecture', icon: '⬡', meta: 'System landscape' },
+];
+
+// Embedded markdown content
+const DOCS = {};
+
+DOCS['raci'] = `# RACI — Roles, Responsibilities & Accountability
+
+_Owner: Boardroom | Approved by: PO | Version: 1.0_
+
+---
+
+## Roles
+
+### PO (Kristof)
+The firm's owner and sole decision-maker. Final approval on all changes, capital deployment, strategy, and agent memory updates. Acts as gatekeeper for all transitions from research to live trading.
+
+### Boardroom (Claude.ai)
+Strategic advisor and operating model owner. Defines stories, agrees AC, maintains all firm documentation, shapes vision and roadmap. Does not execute code or deploy.
+
+### Manager (Claude API — future)
+Orchestrates learning cycles. Owns token budget, session minutes, decision log, idea log, and all agent documentation. Initiates research cycles on PO trigger. Routes proposals to PO review. Runs session close routine after every cycle.
+
+### Analyst (Claude API — future)
+Trading specialist. Defines hypotheses, audits backtest results, self-educates via book knowledge base. Does not run backtests or write code. Raises hand to Manager when contributing.
+
+### Engineer (Claude API — future)
+Runs backtests using the engine. Writes one-off prototype scripts when engine cannot support a hypothesis. Proposes engine changes via story scope when prototypes prove value. Does not modify the production engine or deploy code.
+
+### Workshop (Claude Code — VPS)
+Implements all stories. Owns codebase, TDD/BDD discipline, git branching, Docker. Delivers against agreed AC. Never deploys to PRD without PO approval. Performs session close self-check after each story delivery.
+
+---
+
+## RACI Matrix
+
+| Activity | PO | Boardroom | Manager | Analyst | Engineer | Workshop |
+|---|---|---|---|---|---|---|
+| Define vision & strategy | A | R | I | I | I | I |
+| Approve story AC | A | R | I | — | — | C |
+| Implement stories | I | — | — | — | — | R/A |
+| Deploy to PRD | A | — | — | — | — | R |
+| Initiate learning cycle | A | — | R | I | I | — |
+| Define hypothesis | I | — | C | R/A | — | — |
+| Run backtest | I | — | C | C | R/A | — |
+| Audit backtest results | I | — | C | R/A | — | — |
+| Propose strategy change | A | — | R | C | C | — |
+| Approve memory updates | A | — | C | — | — | — |
+| Maintain firm documents | A | R | C | — | — | — |
+| Session close routine | I | — | R | C | C | C |
+| Capital deployment | A/R | — | — | — | — | — |
+| IT security & secrets | A/R | — | — | — | — | — |
+
+_R=Responsible, A=Accountable, C=Consulted, I=Informed_
+
+---
+
+## Segregation of Duties
+
+| Concern | Separation |
+|---|---|
+| Strategy research vs live execution | Analyst/Engineer (research) vs Workshop/pipeline (execution) |
+| Code change vs deployment approval | Workshop (implements) vs PO (approves PRD) |
+| Hypothesis vs audit | Analyst defines, Engineer runs, Analyst audits — no self-auditing |
+| Document authoring vs approval | Boardroom authors, PO approves all changes |
+| Agent memory vs updates | Agents flag candidates, PO approves all memory changes |
+
+---
+
+## Session Close Routine
+
+After every story delivery (Workshop) and every research cycle (Analyst, Engineer):
+
+1. Self-check: did this session surface anything not already in persistent memory or documentation?
+2. If yes: flag to Manager with suggested memory update
+3. Manager queues in PO review document
+4. PO approves or rejects
+
+This prevents knowledge rot between sessions.`;
+
+DOCS['strategy-roadmap'] = \`# Strategy & Roadmap
+
+_Owner: Boardroom | Approved by: PO | Version: 1.0_
+
+---
+
+## Vision
+
+Build a fully autonomous US stock trading system that generates consistent absolute profit from intraday momentum opportunities. Operate as a disciplined, self-improving trading firm with human oversight at all critical decision points.
+
+---
+
+## Guiding Principles
+
+1. **Reliable profit first** — even 1 trade/week at 90% WR beats 50 trades at 50% WR
+2. **Bottom-up strategies** — build per ticker/profile, not one-size-fits-all
+3. **Isolation testing** — compare only divergent trades between variants
+4. **No LLM in critical momentum path** — mechanical fast path for entries
+5. **Absolute profit is the objective** — not win rate, not trade count
+6. **Don't rely on outlier runners** — strategy must be robust without 1-2 big winners
+7. **Simplicity over premature optimisation** — defer complexity until proven necessary
+
+---
+
+## Trade Modes
+
+| Mode | Entry | Exit | Status |
+|---|---|---|---|
+| Momentum | Fully autonomous | Fully autonomous | Active (paper) |
+| Swing | Manual entry | Automated exit | Future |
+
+---
+
+## Current Strategy (Active)
+
+**vol_filter v2.1.0**
+- Signal: EMA3/EMA9 gap crosses above 3.0%
+- Volume filter: volume_ratio (EMA-10) ≥ 2.0
+- Exit: EMA gap crosses below 1.5% OR 2.0x ATR(14) trailing stop
+- Session: RTH only (09:30–16:00 ET)
+- Force close: EOD
+- Skip first entry: per ticker per day
+
+**Research verdict (EXP-023):** Not production ready. 34% WR, profit driven by outlier runners — violates principle #6. Next focus: Grinder strategy (IDEA-016) and book-derived hypotheses.
+
+---
+
+## Identified Trade Profiles
+
+| Profile | Archetype | Characteristic | Strategy approach |
+|---|---|---|---|
+| Impulse | MOBX | Sharp EMA gap spike, high RVOL | vol_filter works, fast entry |
+| Grinder | MDBX | Steady climb, moderate EMA gap | Needs different strategy (IDEA-016) |
+
+---
+
+## Phases
+
+### ✅ Phase 1–3 — Foundation, Core Pipeline, Exit Engine
+
+### ✅ Phase 4 — Entry Pipeline (v0.13.0 PRD)
+4.1 Scanner · 4.2 Watchlist · 4.3 Analyst · 4.4 Observer · 4.5 Monitor · 4.6 Trader + Safety Rails · 4.7 Pipeline Orchestrator · 4.8 Smart Rejection
+
+### 🔧 Phase 5 — Triple Loop (Learning)
+- 5.1–5.3d — Backtesting engine (complete, 25 indicators)
+- 5.4 🔲 Agent Definitions (Manager, Analyst, Engineer)
+- 5.5 🔲 Session log + communication protocol
+- 5.6 🔲 Manager-led learning cycle
+- 5.7 🔲 PO review document + async approval flow
+
+### 🔲 Phase 6 — Production
+Strategy validated → real capital deployment. Security hardening, capital policy, position sizing.
+
+---
+
+## Backlog (Selected)
+
+| ID | Description | Priority |
+|---|---|---|
+| IDEA-016 | Grinder strategy | High |
+| — | Mechanical fast path (bypass Analyst LLM) | High |
+| — | Position sizing (Kelly or fixed fractional) | Medium |
+| — | Multi-timeframe confirmation | Medium |
+| — | Value Area / Volume Profile | Parked |
+| — | time_of_day_avg volume decay mode | Parked |
+
+---
+
+## Research State
+
+- **Experiments completed:** EXP-001 to EXP-023
+- **Active strategy:** vol_filter v2.1.0 (skip-first variant)
+- **Book extraction:** Pass 1 TOC complete (~800 books), Pass 2 ~65 books extracted
+- **Indicators available:** 25 registered in backtester
+- **Next experiment focus:** Grinder strategy (IDEA-016), book-derived hypotheses\`;
+
+DOCS['kpis'] = \`# KPI Framework
+
+_Owner: Boardroom | Approved by: PO | Version: 1.0_
+
+---
+
+## Overview
+
+KPIs stored as structured JSON in \\\`analysis/kpis/\\\` on VPS. Updated by pipeline after each session. Readable by all LLM agents. **Targets TBD** — establish baselines first.
+
+---
+
+## Layer 1 — Financial Performance
+
+_Tracked: daily, weekly, monthly_
+
+| KPI | Description | Unit |
+|---|---|---|
+| Absolute P&L | Net profit/loss | GBP |
+| P&L vs target | Once target set | GBP / % |
+| Win rate | Winning trades / total trades | % |
+| Avg win / avg loss | Reward:risk ratio | ratio |
+| Profit factor | Gross profit / gross loss | ratio |
+| Max drawdown | Peak-to-trough loss | % |
+| Max drawdown duration | Consecutive losing days | days |
+| Sharpe ratio | Risk-adjusted return | annualised |
+
+---
+
+## Layer 2 — Strategy Quality
+
+_Tracked: per trade, daily, weekly_
+
+| KPI | Description |
+|---|---|
+| Signal-to-trade conversion | Signals fired vs trades taken |
+| Entry timing | Bars from signal to fill |
+| Exit reason distribution | % EMA / ATR / EOD / volume_decay |
+| MAE | Maximum Adverse Excursion |
+| MFE | Maximum Favourable Excursion |
+| MFE capture rate | Exit P&L / MFE |
+| Candidates per session | Raw scanner output |
+| Watchlist → trade rate | % resulting in entry |
+
+---
+
+## Layer 3 — Operational Excellence
+
+_Tracked: per minute (stability), per session, daily_
+
+| KPI | Description |
+|---|---|
+| Session uptime % | Did pipeline run full RTH session? |
+| Component error rate | Errors per service per session |
+| Order submission latency | Signal → T212 order (ms) |
+| Order fill latency | Submission → confirmed fill (ms) |
+| Rejected order rate | % rejected by T212 or safety rails |
+| Polygon API error rate | Failed requests per session |
+| Cache hit rate | % data served from cache vs API |
+| Polygon vs T212 price sync | Spot check — same bar, same price? |
+| VPS CPU / memory | Usage % |
+| API rate limit hits | Polygon, T212, Anthropic |
+
+---
+
+## Layer 4 — Risk Management
+
+_Tracked: per trade, daily_
+
+| KPI | Description |
+|---|---|
+| Largest single loss | GBP and % |
+| Consecutive losing trades | Current streak and max streak |
+| Daily loss limit breaches | Once limits defined |
+| Position concentration | % capital in single position |
+| Exposure time | % of session with open position |
+
+---
+
+## Layer 5 — Agent Health
+
+_Tracked: after each PRD release_
+
+| KPI | Threshold |
+|---|---|
+| Memory file size | TBD per agent |
+| Memory entry count | TBD |
+| Age of oldest entry | Flag if > 90 days unreferenced |
+| Last housekeeping date | Must not exceed release cadence |
+
+---
+
+## Storage
+
+\\\`\\\`\\\`
+analysis/kpis/
+  financial.json     — P&L, win rate, profit factor, drawdown
+  strategy.json      — entry/exit quality, scanner metrics
+  operational.json   — latency, errors, uptime, API health
+  risk.json          — loss streaks, concentration, exposure
+  agent-health.json  — memory sizes, entry counts, housekeeping
+\\\`\\\`\\\`\`;
+
+DOCS['risk-policy'] = \`# Risk Policy
+
+_Owner: Boardroom | Approved by: PO | Version: 1.0_
+
+---
+
+## Principles
+
+- Capital preservation takes priority over profit maximisation
+- Hard limits are non-negotiable — no overrides without PO approval
+- Demo mode must be validated before any real capital is deployed
+- All risk parameters reviewed after each PRD release
+
+---
+
+## Position Limits (Placeholder — to be set before live trading)
+
+| Parameter | Current | Notes |
+|---|---|---|
+| Max open positions | TBD | Simultaneous holdings |
+| Max position size | TBD | % of total capital per trade |
+| Max daily capital at risk | TBD | % of capital exposed intraday |
+| Min price | $0.20 | Scanner filter (active) |
+| Max price | TBD | Scanner filter |
+
+---
+
+## Drawdown Triggers (Placeholder)
+
+| Trigger | Action |
+|---|---|
+| Daily loss > X% | Pause trading, notify PO |
+| Weekly loss > X% | Stop all trading, PO review required |
+| Consecutive losses > N | Reduce position size or pause |
+| Monthly drawdown > X% | Full strategy review |
+
+---
+
+## Kill Switch
+
+- Manual: PO can stop pipeline at any time via CLI (\\\`yolo stop\\\`)
+- Automatic: daily loss limit breach triggers automatic pause
+- All open positions closed at EOD (force_close_eod = True)
+- No overnight positions (RTH only)
+
+---
+
+## Demo → Live Gate
+
+Real capital deployment requires ALL of the following:
+
+1. Strategy validated over minimum 30 trading days in demo
+2. Win rate ≥ target threshold (TBD)
+3. Max drawdown within policy limits
+4. Full security hardening completed
+5. Capital policy formally approved by PO
+6. Incident management procedures tested
+
+---
+
+## Compliance Rules
+
+- No leveraged instruments
+- No short selling (long only)
+- No overnight positions
+- No trading outside RTH without explicit PO approval
+- T212 demo account used for all testing
+- Real money account accessed only after demo gate passed
+- All API keys age-encrypted, root-only access for PRD secrets
+
+---
+
+## IT Security (Basic — v1.0)
+
+- VPS access: SSH key only, no password login
+- Secrets: age-encrypted \\\`.env.prd\\\`, root-only read access
+- Dev secrets: \\\`.env.dev\\\`, claude user access
+- No secrets in git history — \\\`.env*\\\` in \\\`.gitignore\\\`
+- GitHub repos: private under K25TOF org
+- PRD deployments: root only
+- API keys rotated if any suspected exposure
+
+_Note: Full IT security department planned as future phase._\`;
+
+DOCS['architecture'] = \`# Architecture
+
+_Owner: Boardroom | Approved by: PO | Version: 1.0_
+
+---
+
+## Infrastructure
+
+| Component | Detail |
+|---|---|
+| VPS | Hostinger KVM 2 — srv1161923.hstgr.cloud |
+| OS | Ubuntu 24.04 LTS |
+| Resources | 2 CPU / 8 GB RAM / 100 GB disk |
+| Users | root (PO — infra, secrets) · claude (dev — Docker, Git) |
+| Python | 3.12.3 · Docker 28.2.2 |
+
+**Existing non-YOLO services:**
+
+| Service | Port | Purpose |
+|---|---|---|
+| Mosquitto MQTT | 1883 | IoT messaging (Shelly/Puli smart home) |
+| SSH | 22 | Remote access |
+
+---
+
+## Running Containers
+
+| Container | Purpose | Port |
+|---|---|---|
+| yolo-dev | Test & PO review | — |
+| yolo-dashboard | Live watchlist monitoring | 127.0.0.1:8001 |
+| yolo-paper | Paper trading (live pipeline) | — |
+
+Port ranges: DEV 8001–8099 · PRD 8100–8199
+
+---
+
+## Pipeline Services
+
+**Layer 0 — API Clients:** T212Client · PolygonClient · PolygonWsFeed · AnthropicClient
+
+**Layer 1 — Data Stores:** WatchlistService (SQLite + in-memory) · JournalService (SQLite) · DDBot (Haiku)
+
+**Layer 2 — Data Pipeline:** PositionMonitor (5s) · CandleEngine (1-min/5-min) · RiskProfileService · MarketScanner (2-stage)
+
+**Layer 3 — Exit Pipeline:** TradingEngine · StrategyBrain (Sonnet, optional) · OrderManager
+
+**Layer 4 — Entry Pipeline:** AnalystService (Haiku) · EntryMonitor · TraderService (5 safety rails)
+
+---
+
+## Data Flow
+
+\\\`\\\`\\\`
+Polygon Snapshot
+  → MarketScanner (Stage 1: filters, Stage 2: RVOL ≥ 5x)
+  → WatchlistService [NEW]
+  → AnalystService (Haiku) → APPROVED / REJECTED
+  → WatchlistService [WATCHING]
+  → EntryMonitor (WebSocket) → conditions met → [BUYING]
+  → TraderService (5 safety rails) → T212 order → [HOLDING]
+  → TradingEngine (1s loop) + StrategyBrain (5-min, optional)
+  → OrderManager → T212 sell
+  → JournalService [CLOSED]
+\\\`\\\`\\\`
+
+---
+
+## External APIs
+
+| API | Auth | Purpose |
+|---|---|---|
+| Polygon.io | Bearer token | Snapshots, bars, news, WebSocket |
+| Trading 212 | Basic key+secret | Account, positions, orders |
+| Anthropic | API key | Haiku (DD, Analyst) · Sonnet (StrategyBrain) |
+
+---
+
+## Research Layer
+
+\\\`\\\`\\\`
+analysis/
+├── backtester/     # BacktestEngine, 25 indicators, strategy, data, reports
+├── research/       # research-log.md, strategies.json, ideas.md
+├── cache/          # Polygon bar cache
+└── results/        # Backtest CSV output
+\\\`\\\`\\\`
+
+**25 indicators:** ema, sma, rsi, macd_histogram, bb_upper, bb_lower, vwap_session, atr, ema_gap, volume_ratio, volume_ratio_ema, vwap_distance, price_change_pct, spread_ratio, bb_width, kc_width, squeeze_on, squeeze_momentum, force_index_2, force_index_13, kama, ib_high, ib_low, ib_range
+
+---
+
+## Key Metrics
+
+| Metric | Value |
+|---|---|
+| Current version | v0.13.0 |
+| Unit tests | 989 |
+| BDD scenarios | 109 |
+| Regression tests | 7 |
+| Registered indicators | 25 |
+| Core services | 15 |
+| External APIs | 3 |
+| CLI commands | 14 |
+
+---
+
+## GitHub
+
+| Repo | Purpose |
+|---|---|
+| K25TOF/YOLO | Autonomous trading application |
+| K25TOF/yolo-firm | Operating model documentation |\`;
+
+// Build nav
+const nav = document.getElementById('navLinks');
+SECTIONS.forEach(s => {
+  const el = document.createElement('div');
+  el.className = 'nav-link';
+  el.dataset.id = s.id;
+  el.innerHTML = \`<span class="nav-icon">\${s.icon}</span>\${s.label}\`;
+  el.addEventListener('click', () => loadSection(s.id));
+  nav.appendChild(el);
+});
+
+function loadSection(id) {
+  const section = SECTIONS.find(s => s.id === id);
+  document.querySelectorAll('.nav-link').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+  document.getElementById('topbarTitle').textContent = section.label.toUpperCase();
+  document.getElementById('topbarMeta').textContent = section.meta;
+  const content = document.getElementById('content');
+  content.innerHTML = marked.parse(DOCS[id]);
+  window.scrollTo(0, 0);
+}
+
+// Load first section
+loadSection('raci');
+</script>
+</body>
+</html>
