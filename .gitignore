@@ -1,3 +1,6 @@
+# Python cache
+__pycache__/
+
 # Session logs (operational, not versioned)
 agents/session-log/*.md
 !agents/session-log/README.md
@@ -7,3 +10,6 @@ agents/memory-pending.md
 
 # Environment files
 agents/.env
+
+# Server PID file
+agents/.server.pid

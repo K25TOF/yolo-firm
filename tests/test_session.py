@@ -15,6 +15,7 @@ from session import (
     TurnResult,
     build_transcript,
     generate_session_id,
+    is_server_running,
     load_agent_context,
     run_session,
 )
@@ -337,3 +338,33 @@ class TestRunSession:
         assert pending.exists()
         content = pending.read_text()
         assert "New finding: X" in content
+
+
+class TestServerLifecycle:
+    """Tests for WebSocket server lifecycle management."""
+
+    def test_is_server_running_returns_false_when_port_closed(self) -> None:
+        # Port 18999 should not be in use
+        assert is_server_running(port=18999) is False
+
+    @patch("session.socket")
+    def test_is_server_running_returns_true_when_connected(
+        self, mock_socket_mod: MagicMock,
+    ) -> None:
+        mock_sock = MagicMock()
+        mock_socket_mod.socket.return_value = mock_sock
+        mock_sock.connect_ex.return_value = 0
+
+        assert is_server_running(port=8003) is True
+        mock_sock.close.assert_called()
+
+    @patch("session.socket")
+    def test_is_server_running_returns_false_when_refused(
+        self, mock_socket_mod: MagicMock,
+    ) -> None:
+        mock_sock = MagicMock()
+        mock_socket_mod.socket.return_value = mock_sock
+        mock_sock.connect_ex.return_value = 111  # Connection refused
+
+        assert is_server_running(port=8003) is False
+        mock_sock.close.assert_called()

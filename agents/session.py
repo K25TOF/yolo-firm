@@ -1,7 +1,7 @@
 """Multi-agent session orchestrator for YOLO Org Learning.
 
 Runs a full research session: Manager open → Analyst turn → Engineer turn → Manager synthesis.
-Terminal output only. Calls invoke.py functions directly.
+Streams tokens to WebSocket server (if running) alongside terminal output.
 
 Usage:
     python session.py --question "Should we add a VWAP entry filter?"
@@ -13,9 +13,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import signal
+import socket
+import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -189,6 +193,151 @@ def invoke_agent(
     )
 
 
+def send_to_ws(ws_conn: object | None, message: dict) -> None:
+    """Send a JSON message to the WebSocket server. No crash on failure."""
+    if ws_conn is None:
+        return
+    try:
+        ws_conn.send(json.dumps(message))
+    except Exception:
+        pass
+
+
+def invoke_agent_streaming(
+    client: object,
+    agent: str,
+    message: str,
+    system_prompt: str,
+    docs: list[dict],
+    memory: str | None,
+    model: str,
+    transcript: str = "",
+    ws_conn: object | None = None,
+) -> TurnResult:
+    """Invoke a single agent via streaming API.
+
+    Tokens are printed to stdout and pushed to WebSocket server as they arrive.
+    Falls back gracefully if WS connection is unavailable.
+    """
+    full_message = message
+    if transcript:
+        full_message = (
+            f"## Session transcript so far\n\n{transcript}\n\n---\n\n{message}"
+        )
+
+    prompt = build_prompt(system_prompt, docs, memory, full_message)
+
+    # Send turn start notification
+    send_to_ws(ws_conn, {
+        "type": "system", "speaker": "system",
+        "content": f"Turn: {agent}",
+    })
+
+    # Stream response
+    with client.messages.stream(
+        model=model,
+        max_tokens=MAX_TOKENS_PER_TURN,
+        system=prompt["system"],
+        messages=prompt["messages"],
+    ) as stream:
+        for delta in stream.text_stream:
+            sys.stdout.write(delta)
+            sys.stdout.flush()
+            send_to_ws(ws_conn, {
+                "type": "token", "speaker": agent, "content": delta,
+            })
+
+    final = stream.get_final_message()
+    response_text = final.content[0].text
+    memory_upd = extract_memory_update(response_text)
+
+    # Send turn cost
+    in_tok = final.usage.input_tokens
+    out_tok = final.usage.output_tokens
+    cost = in_tok * COST_PER_INPUT + out_tok * COST_PER_OUTPUT
+    send_to_ws(ws_conn, {
+        "type": "cost", "speaker": "system",
+        "content": f"Turn cost: ${cost:.4f} ({in_tok} in / {out_tok} out)",
+    })
+
+    return TurnResult(
+        agent=agent,
+        message=message,
+        response=response_text,
+        input_tokens=in_tok,
+        output_tokens=out_tok,
+        memory_update=memory_upd,
+    )
+
+
+def is_server_running(port: int = 8003) -> bool:
+    """Check if the WebSocket server is listening on the given port."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        result = sock.connect_ex(("127.0.0.1", port))
+        return result == 0
+    finally:
+        sock.close()
+
+
+def ensure_server_running(port: int = 8003) -> bool:
+    """Start the WebSocket server if not already running.
+
+    Returns True if server is running (or was started), False if failed.
+    """
+    if is_server_running(port):
+        return True
+
+    # Try to start server
+    agents_dir = AGENTS_DIR
+    server_script = agents_dir / "server.py"
+    if not server_script.is_file():
+        print("[session] WARNING: server.py not found, continuing without streaming")
+        return False
+
+    session_token = os.environ.get("SESSION_TOKEN")
+    cmd = [sys.executable, str(server_script), "--port", str(port)]
+    if session_token:
+        cmd.extend(["--token", session_token])
+
+    try:
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError as e:
+        print(f"[session] WARNING: Failed to start server: {e}")
+        return False
+
+    # Wait up to 3 seconds for server to start
+    for _ in range(30):
+        time.sleep(0.1)
+        if is_server_running(port):
+            print(f"[session] WebSocket server started on ws://127.0.0.1:{port}")
+            return True
+
+    print("[session] WARNING: Server did not start in time, continuing without streaming")
+    return False
+
+
+def connect_ws(port: int = 8003) -> object | None:
+    """Open a sync WebSocket connection to the server. Returns None on failure."""
+    try:
+        from websockets.sync.client import connect
+
+        session_token = os.environ.get("SESSION_TOKEN")
+        ws = connect(f"ws://127.0.0.1:{port}")
+
+        if session_token:
+            ws.send(json.dumps({"type": "auth", "token": session_token}))
+
+        return ws
+    except Exception:
+        return None
+
+
 def print_turn(turn: TurnResult, tracker: TokenTracker, label: str = "") -> None:
     """Print a turn's output to terminal with formatting."""
     header = turn.agent.upper()
@@ -265,6 +414,26 @@ def run_session(
     # --- LIVE MODE ---
     client = create_client()
 
+    # Start WebSocket server and connect
+    ws_conn = None
+    server_up = ensure_server_running()
+    if server_up:
+        ws_conn = connect_ws()
+        if ws_conn:
+            print("[session] Connected to WebSocket server")
+
+    def _invoke(agent, message, prompt, docs, mem, transcript=""):
+        """Invoke agent — streaming if WS connected, blocking otherwise."""
+        if ws_conn:
+            return invoke_agent_streaming(
+                client, agent, message, prompt, docs, mem, model,
+                transcript=transcript, ws_conn=ws_conn,
+            )
+        return invoke_agent(
+            client, agent, message, prompt, docs, mem, model,
+            transcript=transcript,
+        )
+
     print(f"=== SESSION {session_id} ===")
     print(f"Model: {model}")
     if question:
@@ -272,6 +441,11 @@ def run_session(
     else:
         print("Mode: open (Manager decides topic)")
     print("=" * 40)
+
+    send_to_ws(ws_conn, {
+        "type": "system", "speaker": "system",
+        "content": f"Session {session_id} started",
+    })
 
     # --- TURN 1: MANAGER OPEN ---
     mgr_prompt, mgr_docs, mgr_missing, mgr_memory = load_agent_context(
@@ -293,9 +467,7 @@ def run_session(
             f"and which agents are needed."
         )
 
-    turn = invoke_agent(
-        client, "manager", open_message, mgr_prompt, mgr_docs, mgr_memory, model,
-    )
+    turn = _invoke("manager", open_message, mgr_prompt, mgr_docs, mgr_memory)
     tracker.turns.append(turn)
     _log_path = write_session_log(
         log_dir, session_id, "manager", model,
@@ -315,9 +487,9 @@ def run_session(
         "Analyst, your turn. Respond to the Manager's question per protocol."
     )
 
-    turn = invoke_agent(
-        client, "analyst", analyst_message,
-        ana_prompt, ana_docs, ana_memory, model, transcript,
+    turn = _invoke(
+        "analyst", analyst_message,
+        ana_prompt, ana_docs, ana_memory, transcript,
     )
     tracker.turns.append(turn)
     write_session_log(
@@ -340,9 +512,9 @@ def run_session(
         "Engineer, your turn. Respond per protocol."
     )
 
-    turn = invoke_agent(
-        client, "engineer", engineer_message,
-        eng_prompt, eng_docs, eng_memory, model, transcript,
+    turn = _invoke(
+        "engineer", engineer_message,
+        eng_prompt, eng_docs, eng_memory, transcript,
     )
     tracker.turns.append(turn)
     write_session_log(
@@ -362,9 +534,9 @@ def run_session(
         "summarise findings, note memory updates, write session minutes."
     )
 
-    turn = invoke_agent(
-        client, "manager", close_message,
-        mgr_prompt, mgr_docs, mgr_memory, model, transcript,
+    turn = _invoke(
+        "manager", close_message,
+        mgr_prompt, mgr_docs, mgr_memory, transcript,
     )
     tracker.turns.append(turn)
     write_session_log(
@@ -392,6 +564,17 @@ def run_session(
         print(f"  → {pending_path}")
     else:
         print("\nNo memory updates flagged.")
+
+    # Close WebSocket connection
+    send_to_ws(ws_conn, {
+        "type": "system", "speaker": "system",
+        "content": "Session complete",
+    })
+    if ws_conn:
+        try:
+            ws_conn.close()
+        except Exception:
+            pass
 
     print("\n=== SESSION COMPLETE ===")
 
