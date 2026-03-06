@@ -13,3 +13,6 @@ agents/.env
 
 # Server PID file
 agents/.server.pid
+
+# Virtual environment
+.venv/
