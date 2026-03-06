@@ -28,10 +28,10 @@ _Owner: Boardroom | Approved by: PO | Version: 1.0 — sourced from Workshop sna
 | Container | Branch | Purpose | Port |
 |---|---|---|---|
 | yolo-dev | develop/feature | Test & PO review | — |
-| yolo-dashboard | develop | Live watchlist monitoring | 127.0.0.1:8001 |
+| yolo-dashboard | develop | Live watchlist monitoring | — |
 | yolo-paper | develop | Paper trading (live pipeline) | — |
 
-Port ranges reserved: DEV 8001–8099 · PRD 8100–8199
+Port ranges reserved: DEV 8001–8099 · PRD 8100–8199 (assigned at runtime, not in compose)
 PRD container: not yet defined (pending strategy validation)
 
 ---
@@ -50,7 +50,7 @@ PRD container: not yet defined (pending strategy validation)
 | Service | Storage | Purpose |
 |---|---|---|
 | WatchlistService | SQLite + in-memory | Candidate lifecycle, observer pattern |
-| JournalService | SQLite | Trade history + decision log |
+| Journal | SQLite | Trade history + decision log |
 | DDBot | — | Qualitative due diligence (Claude Haiku) |
 
 ### Layer 2 — Data Pipeline
@@ -58,7 +58,7 @@ PRD container: not yet defined (pending strategy validation)
 |---|---|---|
 | PositionMonitor | 5s | T212 position polling |
 | CandleEngine | 1-min/5-min | OHLCV aggregation + EMA9 |
-| RiskProfileService | Per candidate | 5-factor weighted risk scoring |
+| RiskProfile | Per candidate | 5-factor weighted risk scoring |
 | MarketScanner | Per cycle | Two-stage candidate discovery (snapshot → RVOL ≥ 5x) |
 
 ### Layer 3 — Exit Pipeline
@@ -98,7 +98,7 @@ Polygon Snapshot API
        │           StrategyBrain advisory (optional)
   OrderManager ── Sell → T212
        │
-  JournalService ── Trade record + decision log → SQLite
+  Journal ── Trade record + decision log → SQLite
 ```
 
 ---
@@ -122,7 +122,7 @@ analysis/
 ├── backtester/
 │   ├── engine.py           # BacktestEngine class (entry/exit simulation)
 │   ├── strategy.py         # Composable rules (Rule + Strategy dataclasses)
-│   ├── indicators.py       # 25 registered indicators (per-bar + O(n) series)
+│   ├── indicators.py       # 24 registered indicators (per-bar + O(n) series)
 │   ├── data.py             # Polygon bar fetcher + JSON cache
 │   ├── reports.py          # Missed opportunities, summary stats
 │   ├── walk.py             # Deprecated — kept for scratch script compat
@@ -136,7 +136,7 @@ analysis/
 └── scratch_exp*.py         # Experiment scripts
 ```
 
-**Registered indicators (25):**
+**Registered indicators (24):**
 ema, sma, rsi, macd_histogram, bb_upper, bb_lower, vwap_session, atr, ema_gap,
 volume_ratio, volume_ratio_ema, vwap_distance, price_change_pct, spread_ratio,
 bb_width, kc_width, squeeze_on, squeeze_momentum, force_index_2, force_index_13,
@@ -154,7 +154,7 @@ kama, ib_high, ib_low, ib_range
 ├── Dockerfile              # python:3.12-slim, non-root user
 ├── docker-compose.yml      # DEV service definition
 ├── pyproject.toml          # httpx, pydantic, typer, websocket-client, anthropic
-├── .env.example            # 50+ configurable settings
+├── .env.example            # 75+ configurable settings
 ├── src/                    # Application code (15 core modules)
 ├── tests/                  # 989 unit + 109 BDD + 7 regression
 ├── analysis/               # Research & backtesting layer
@@ -172,11 +172,11 @@ kama, ib_high, ib_low, ib_range
 | Unit tests | 989 |
 | BDD scenarios | 109 |
 | Regression tests | 7 |
-| Registered indicators | 25 |
+| Registered indicators | 24 |
 | Core services | 15 |
 | External APIs | 3 |
 | CLI commands | 14 |
-| Configurable settings | 50+ |
+| Configurable settings | 75+ |
 
 ---
 
