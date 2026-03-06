@@ -50,7 +50,7 @@ PRD container: not yet defined (pending strategy validation)
 | Service | Storage | Purpose |
 |---|---|---|
 | WatchlistService | SQLite + in-memory | Candidate lifecycle, observer pattern |
-| Journal | SQLite | Trade history + decision log |
+| JournalService | SQLite | Trade history + decision log |
 | DDBot | — | Qualitative due diligence (Claude Haiku) |
 
 ### Layer 2 — Data Pipeline
@@ -58,7 +58,7 @@ PRD container: not yet defined (pending strategy validation)
 |---|---|---|
 | PositionMonitor | 5s | T212 position polling |
 | CandleEngine | 1-min/5-min | OHLCV aggregation + EMA9 |
-| RiskProfile | Per candidate | 5-factor weighted risk scoring |
+| RiskProfileService | Per candidate | 5-factor weighted risk scoring |
 | MarketScanner | Per cycle | Two-stage candidate discovery (snapshot → RVOL ≥ 5x) |
 
 ### Layer 3 — Exit Pipeline
@@ -98,7 +98,7 @@ Polygon Snapshot API
        │           StrategyBrain advisory (optional)
   OrderManager ── Sell → T212
        │
-  Journal ── Trade record + decision log → SQLite
+  JournalService ── Trade record + decision log → SQLite
 ```
 
 ---
