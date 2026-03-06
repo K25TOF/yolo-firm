@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YOLO — Operating Model</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #00d4aa;
+    --accent2: #7c6af7;
+    --text: #e0e0f0;
+    --muted: #6b6b8a;
+    --warning: #f0a050;
+    --nav-w: 220px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* SIDEBAR */
+  nav {
+    width: var(--nav-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 100;
+  }
+
+  .nav-header {
+    padding: 24px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .nav-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .nav-links {
+    padding: 16px 0;
+    flex: 1;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    user-select: none;
+  }
+
+  .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+
+  .nav-link.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(0, 212, 170, 0.06);
+  }
+
+  .nav-icon { font-size: 14px; width: 16px; text-align: center; }
+
+  .nav-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* MAIN */
+  main {
+    margin-left: var(--nav-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .topbar-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .topbar-meta {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .badge-green { background: rgba(0,212,170,0.15); color: var(--accent); }
+  .badge-purple { background: rgba(124,106,247,0.15); color: var(--accent2); }
+
+  .content {
+    padding: 40px;
+    max-width: 900px;
+    line-height: 1.7;
+  }
+
+  /* MARKDOWN STYLES */
+  .content h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .content h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 32px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .content h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin: 20px 0 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  .content h4 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--warning);
+    margin: 16px 0 6px;
+  }
+
+  .content p {
+    margin-bottom: 12px;
+    color: #c0c0d8;
+  }
+
+  .content em {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .content strong { color: var(--text); font-weight: 600; }
+
+  .content ul, .content ol {
+    margin: 8px 0 12px 20px;
+    color: #c0c0d8;
+  }
+
+  .content li { margin-bottom: 4px; }
+
+  .content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+
+  .content th {
+    background: rgba(0,212,170,0.08);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .content td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(30,30,46,0.8);
+    color: #c0c0d8;
+    vertical-align: top;
+  }
+
+  .content tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .content code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: rgba(124,106,247,0.12);
+    color: var(--accent2);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .content pre {
+    background: #0d0d18;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    margin: 12px 0;
+    overflow-x: auto;
+  }
+
+  .content pre code {
+    background: none;
+    color: #9090c0;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  .content blockquote {
+    border-left: 3px solid var(--accent2);
+    padding-left: 16px;
+    margin: 12px 0;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* STATUS BAR */
+  .statusbar {
+    position: fixed;
+    bottom: 0;
+    left: var(--nav-w);
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 40px;
+    display: flex;
+    gap: 24px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .status-item { display: flex; gap: 6px; align-items: center; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .status-dot.warn { background: var(--warning); }
+  .status-val { color: var(--text); }
+
+  /* LOADING */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    gap: 10px;
+  }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-header">
+    <div class="nav-logo">YOLO</div>
+    <div class="nav-sub">Operating Model v1.0</div>
+  </div>
+  <div class="nav-links" id="navLinks"></div>
+  <div class="nav-footer">
+    K25TOF · PRD v0.13.0<br>
+    <span style="font-size:9px;color:#444">Update: cd /home/claude/projects/yolo-firm && git pull</span>
+  </div>
+</nav>
+
+<main>
+  <div class="topbar">
+    <div class="topbar-title" id="topbarTitle">—</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="badge badge-green">DEMO MODE</span>
+      <span class="badge badge-purple">Phase 5</span>
+      <span class="topbar-meta" id="topbarMeta"></span>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="loading"><div class="spinner"></div>Loading...</div>
+  </div>
+
+  <div style="height:40px"></div>
+</main>
+
+<div class="statusbar">
+  <div class="status-item"><div class="status-dot"></div><span>Pipeline</span><span class="status-val">paper trading</span></div>
+  <div class="status-item"><div class="status-dot"></div><span>Strategy</span><span class="status-val">vol_filter v2.1.0</span></div>
+  <div class="status-item"><div class="status-dot warn"></div><span>Live trading</span><span class="status-val">not yet approved</span></div>
+  <div class="status-item"><div class="status-dot"></div><span>Tests</span><span class="status-val">989 unit · 109 BDD · 7 regression</span></div>
+</div>
+
+<script>
+const SECTIONS = [
+  { id: 'raci', label: 'RACI', icon: '◈', meta: 'Roles & responsibilities' },
+  { id: 'strategy-roadmap', label: 'Strategy & Roadmap', icon: '◇', meta: 'Vision, phases, backlog' },
+  { id: 'kpis', label: 'KPI Framework', icon: '◣', meta: 'Performance metrics' },
+  { id: 'risk-policy', label: 'Risk Policy', icon: '◉', meta: 'Limits, gates, compliance' },
+  { id: 'architecture', label: 'Architecture', icon: '⬡', meta: 'System landscape' },
+];
+
+// Build nav
+const navEl = document.getElementById('navLinks');
+SECTIONS.forEach(s => {
+  const el = document.createElement('div');
+  el.className = 'nav-link';
+  el.dataset.id = s.id;
+  el.innerHTML = `<span class="nav-icon">${s.icon}</span>${s.label}`;
+  el.addEventListener('click', () => loadSection(s.id));
+  navEl.appendChild(el);
+});
+
+async function loadSection(id) {
+  const section = SECTIONS.find(s => s.id === id);
+  document.querySelectorAll('.nav-link').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+  document.getElementById('topbarTitle').textContent = section.label.toUpperCase();
+  document.getElementById('topbarMeta').textContent = section.meta;
+
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
+
+  try {
+    const res = await fetch(`/docs/${id}.md`);
+    if (!res.ok) throw new Error(`${id}.md not found (${res.status})`);
+    const md = await res.text();
+    content.innerHTML = marked.parse(md);
+  } catch (e) {
+    content.innerHTML = `<div style="padding:40px;color:var(--warning);font-family:'IBM Plex Mono',monospace">
+      <p style="font-size:15px;margin-bottom:12px">Failed to load document</p>
+      <p style="color:var(--muted);font-size:12px">${e.message}</p>
+    </div>`;
+  }
+  window.scrollTo(0, 0);
+}
+
+// Load first section
+loadSection('raci');
+</script>
+</body>
+</html>

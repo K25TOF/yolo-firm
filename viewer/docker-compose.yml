@@ -1,0 +1,14 @@
+services:
+  yolo-firm-viewer:
+    build: .
+    container_name: yolo-firm-viewer
+    ports:
+      - "8002:80"
+    volumes:
+      - ..:/data:ro
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
