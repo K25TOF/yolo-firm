@@ -1,0 +1,9 @@
+# Session logs (operational, not versioned)
+agents/session-log/*.md
+!agents/session-log/README.md
+
+# Pending memory updates (require PO approval)
+agents/memory-pending.md
+
+# Environment files
+agents/.env
