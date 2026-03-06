@@ -200,8 +200,8 @@ def send_to_ws(ws_conn: object | None, message: dict) -> None:
         return
     try:
         ws_conn.send(json.dumps(message))
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[session] WebSocket send failed: {e}")
 
 
 def invoke_agent_streaming(
