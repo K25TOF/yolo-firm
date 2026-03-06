@@ -6,6 +6,7 @@ services:
       - "8002:80"
     volumes:
       - ..:/data:ro
+      - /home/claude/projects/yolo/analysis/kpis:/kpis:ro
     restart: unless-stopped
     logging:
       driver: json-file
