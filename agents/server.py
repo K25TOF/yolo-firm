@@ -19,6 +19,8 @@ import time
 from pathlib import Path
 
 import websockets
+from websockets.datastructures import Headers
+from websockets.http11 import Response
 
 # Connected clients set — shared across handlers
 CONNECTED_CLIENTS: set = set()
@@ -29,12 +31,60 @@ IDLE_TIMEOUT_SECONDS = 30 * 60  # 30 minutes
 
 DEFAULT_PORT = 8003
 PID_FILE = Path(__file__).parent / ".server.pid"
+CHAT_UI_PATH = Path(__file__).parent / "chat-ui" / "index.html"
+INTERRUPT_FLAG = Path(__file__).parent / "session-interrupt.flag"
 
 
 def reset_idle_timer() -> None:
     """Reset the idle timer — called on every message received."""
     global _last_activity  # noqa: PLW0603
     _last_activity = time.monotonic()
+
+
+async def process_request(connection: object, request: object) -> Response | None:
+    """Serve chat UI on GET /, pass through WebSocket upgrades."""
+    if request.path == "/" and "Upgrade" not in request.headers:
+        try:
+            html = CHAT_UI_PATH.read_bytes()
+            return Response(
+                200, "OK",
+                Headers({"Content-Type": "text/html; charset=utf-8"}),
+                html,
+            )
+        except FileNotFoundError:
+            return Response(
+                404, "Not Found",
+                Headers({"Content-Type": "text/plain"}),
+                b"Chat UI not found",
+            )
+    return None
+
+
+async def handle_command(data: dict) -> bool:
+    """Handle pause/resume/cancel commands. Returns True if handled."""
+    cmd = data.get("type")
+    if cmd == "pause":
+        INTERRUPT_FLAG.write_text("pause")
+        await broadcast({
+            "type": "system", "speaker": "system",
+            "content": "Session paused",
+        })
+        return True
+    if cmd == "resume":
+        INTERRUPT_FLAG.unlink(missing_ok=True)
+        await broadcast({
+            "type": "system", "speaker": "system",
+            "content": "Session resumed",
+        })
+        return True
+    if cmd == "cancel":
+        INTERRUPT_FLAG.write_text("cancel")
+        await broadcast({
+            "type": "system", "speaker": "system",
+            "content": "Session cancelled",
+        })
+        return True
+    return False
 
 
 async def authenticate(websocket: object, token: str | None) -> bool:
@@ -92,8 +142,8 @@ async def handler(websocket: object, token: str | None) -> None:
             reset_idle_timer()
             try:
                 data = json.loads(raw)
-                # Rebroadcast received messages to all clients
-                await broadcast(data)
+                if not await handle_command(data):
+                    await broadcast(data)
             except json.JSONDecodeError:
                 pass
     except websockets.exceptions.ConnectionClosed:
@@ -142,6 +192,7 @@ async def serve(port: int, token: str | None) -> None:
         lambda ws: handler(ws, token),
         "127.0.0.1",
         port,
+        process_request=process_request,
     ):
         print(f"[server] Listening on ws://127.0.0.1:{port}")
         if token:

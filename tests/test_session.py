@@ -14,6 +14,7 @@ from session import (
     TokenTracker,
     TurnResult,
     build_transcript,
+    check_interrupt,
     generate_session_id,
     is_server_running,
     load_agent_context,
@@ -368,3 +369,29 @@ class TestServerLifecycle:
 
         assert is_server_running(port=8003) is False
         mock_sock.close.assert_called()
+
+
+class TestCheckInterrupt:
+    """Tests for session interrupt flag checking."""
+
+    def test_returns_none_when_no_flag(self, tmp_path: Path) -> None:
+        with patch("session.INTERRUPT_FLAG", tmp_path / "nonexistent.flag"):
+            assert check_interrupt() is None
+
+    def test_returns_pause_when_flag_contains_pause(self, tmp_path: Path) -> None:
+        flag = tmp_path / "session-interrupt.flag"
+        flag.write_text("pause")
+        with patch("session.INTERRUPT_FLAG", flag):
+            assert check_interrupt() == "pause"
+
+    def test_returns_cancel_when_flag_contains_cancel(self, tmp_path: Path) -> None:
+        flag = tmp_path / "session-interrupt.flag"
+        flag.write_text("cancel")
+        with patch("session.INTERRUPT_FLAG", flag):
+            assert check_interrupt() == "cancel"
+
+    def test_strips_whitespace(self, tmp_path: Path) -> None:
+        flag = tmp_path / "session-interrupt.flag"
+        flag.write_text("  pause  \n")
+        with patch("session.INTERRUPT_FLAG", flag):
+            assert check_interrupt() == "pause"

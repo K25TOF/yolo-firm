@@ -43,6 +43,7 @@ COST_PER_OUTPUT = 5.00 / 1_000_000
 AGENTS_DIR = Path(__file__).parent
 FIRM_REPO = AGENTS_DIR.parent
 YOLO_REPO = FIRM_REPO.parent / "yolo"
+INTERRUPT_FLAG = AGENTS_DIR / "session-interrupt.flag"
 
 
 @dataclass
@@ -338,6 +339,16 @@ def connect_ws(port: int = 8003) -> object | None:
         return None
 
 
+def check_interrupt() -> str | None:
+    """Check for pause/cancel interrupt flag.
+
+    Returns 'pause', 'cancel', or None.
+    """
+    if not INTERRUPT_FLAG.is_file():
+        return None
+    return INTERRUPT_FLAG.read_text().strip()
+
+
 def print_turn(turn: TurnResult, tracker: TokenTracker, label: str = "") -> None:
     """Print a turn's output to terminal with formatting."""
     header = turn.agent.upper()
@@ -421,6 +432,11 @@ def run_session(
         ws_conn = connect_ws()
         if ws_conn:
             print("[session] Connected to WebSocket server")
+        session_token = os.environ.get("SESSION_TOKEN")
+        if session_token:
+            print(f"Chat UI → http://localhost:8003?token={session_token}")
+        else:
+            print("Chat UI → http://localhost:8003")
 
     def _invoke(agent, message, prompt, docs, mem, transcript=""):
         """Invoke agent — streaming if WS connected, blocking otherwise."""
@@ -477,75 +493,117 @@ def run_session(
     if turn.memory_update:
         memory_updates.append(("manager", turn.memory_update))
 
-    # --- TURN 2: ANALYST ---
-    ana_prompt, ana_docs, ana_missing, ana_memory = load_agent_context(
-        "analyst", agents_dir, firm_repo, yolo_repo,
-    )
-    transcript = build_transcript(tracker.turns)
-    analyst_message = (
-        "Manager has opened a research session and addressed you.\n\n"
-        "Analyst, your turn. Respond to the Manager's question per protocol."
-    )
+    cancelled = False
 
-    turn = _invoke(
-        "analyst", analyst_message,
-        ana_prompt, ana_docs, ana_memory, transcript,
-    )
-    tracker.turns.append(turn)
-    write_session_log(
-        log_dir, session_id, "analyst", model,
-        [d["path"] for d in ana_docs], ana_missing,
-        analyst_message, turn.response,
-    )
-    print_turn(turn, tracker)
-    if turn.memory_update:
-        memory_updates.append(("analyst", turn.memory_update))
+    def _handle_interrupt() -> bool:
+        """Check interrupt flag. Handle pause (block) or cancel (return True)."""
+        status = check_interrupt()
+        if status == "cancel":
+            print("[session] Cancelled by PO")
+            send_to_ws(ws_conn, {
+                "type": "system", "speaker": "system",
+                "content": "Session cancelled by PO",
+            })
+            return True
+        if status == "pause":
+            print("[session] Paused by PO — waiting for resume...")
+            send_to_ws(ws_conn, {
+                "type": "system", "speaker": "system",
+                "content": "Session paused — waiting for resume...",
+            })
+            while check_interrupt() == "pause":
+                time.sleep(1)
+            if check_interrupt() == "cancel":
+                print("[session] Cancelled by PO")
+                send_to_ws(ws_conn, {
+                    "type": "system", "speaker": "system",
+                    "content": "Session cancelled by PO",
+                })
+                return True
+            print("[session] Resumed")
+        return False
+
+    if _handle_interrupt():
+        cancelled = True
+
+    # --- TURN 2: ANALYST ---
+    if not cancelled:
+        ana_prompt, ana_docs, ana_missing, ana_memory = load_agent_context(
+            "analyst", agents_dir, firm_repo, yolo_repo,
+        )
+        transcript = build_transcript(tracker.turns)
+        analyst_message = (
+            "Manager has opened a research session and addressed you.\n\n"
+            "Analyst, your turn. Respond to the Manager's question per protocol."
+        )
+
+        turn = _invoke(
+            "analyst", analyst_message,
+            ana_prompt, ana_docs, ana_memory, transcript,
+        )
+        tracker.turns.append(turn)
+        write_session_log(
+            log_dir, session_id, "analyst", model,
+            [d["path"] for d in ana_docs], ana_missing,
+            analyst_message, turn.response,
+        )
+        print_turn(turn, tracker)
+        if turn.memory_update:
+            memory_updates.append(("analyst", turn.memory_update))
+
+        if _handle_interrupt():
+            cancelled = True
 
     # --- TURN 3: ENGINEER ---
-    eng_prompt, eng_docs, eng_missing, eng_memory = load_agent_context(
-        "engineer", agents_dir, firm_repo, yolo_repo,
-    )
-    transcript = build_transcript(tracker.turns)
-    engineer_message = (
-        "Manager has opened a research session. "
-        "Here is the transcript so far.\n\n"
-        "Engineer, your turn. Respond per protocol."
-    )
+    if not cancelled:
+        eng_prompt, eng_docs, eng_missing, eng_memory = load_agent_context(
+            "engineer", agents_dir, firm_repo, yolo_repo,
+        )
+        transcript = build_transcript(tracker.turns)
+        engineer_message = (
+            "Manager has opened a research session. "
+            "Here is the transcript so far.\n\n"
+            "Engineer, your turn. Respond per protocol."
+        )
 
-    turn = _invoke(
-        "engineer", engineer_message,
-        eng_prompt, eng_docs, eng_memory, transcript,
-    )
-    tracker.turns.append(turn)
-    write_session_log(
-        log_dir, session_id, "engineer", model,
-        [d["path"] for d in eng_docs], eng_missing,
-        engineer_message, turn.response,
-    )
-    print_turn(turn, tracker)
-    if turn.memory_update:
-        memory_updates.append(("engineer", turn.memory_update))
+        turn = _invoke(
+            "engineer", engineer_message,
+            eng_prompt, eng_docs, eng_memory, transcript,
+        )
+        tracker.turns.append(turn)
+        write_session_log(
+            log_dir, session_id, "engineer", model,
+            [d["path"] for d in eng_docs], eng_missing,
+            engineer_message, turn.response,
+        )
+        print_turn(turn, tracker)
+        if turn.memory_update:
+            memory_updates.append(("engineer", turn.memory_update))
+
+        if _handle_interrupt():
+            cancelled = True
 
     # --- TURN 4: MANAGER CLOSE ---
-    transcript = build_transcript(tracker.turns)
-    close_message = (
-        "All agents have responded. Here is the full session transcript.\n\n"
-        "Run the session close routine per protocol: "
-        "summarise findings, note memory updates, write session minutes."
-    )
+    if not cancelled:
+        transcript = build_transcript(tracker.turns)
+        close_message = (
+            "All agents have responded. Here is the full session transcript.\n\n"
+            "Run the session close routine per protocol: "
+            "summarise findings, note memory updates, write session minutes."
+        )
 
-    turn = _invoke(
-        "manager", close_message,
-        mgr_prompt, mgr_docs, mgr_memory, transcript,
-    )
-    tracker.turns.append(turn)
-    write_session_log(
-        log_dir, session_id, "manager", model,
-        context_files, mgr_missing, close_message, turn.response,
-    )
-    print_turn(turn, tracker, "CLOSE")
-    if turn.memory_update:
-        memory_updates.append(("manager", turn.memory_update))
+        turn = _invoke(
+            "manager", close_message,
+            mgr_prompt, mgr_docs, mgr_memory, transcript,
+        )
+        tracker.turns.append(turn)
+        write_session_log(
+            log_dir, session_id, "manager", model,
+            context_files, mgr_missing, close_message, turn.response,
+        )
+        print_turn(turn, tracker, "CLOSE")
+        if turn.memory_update:
+            memory_updates.append(("manager", turn.memory_update))
 
     # --- SUMMARY ---
     print(f"\n{tracker.summary()}")
@@ -565,11 +623,15 @@ def run_session(
     else:
         print("\nNo memory updates flagged.")
 
+    # Clean up interrupt flag
+    INTERRUPT_FLAG.unlink(missing_ok=True)
+
     # Close WebSocket connection
-    send_to_ws(ws_conn, {
-        "type": "system", "speaker": "system",
-        "content": "Session complete",
-    })
+    if not cancelled:
+        send_to_ws(ws_conn, {
+            "type": "system", "speaker": "system",
+            "content": "Session complete",
+        })
     if ws_conn:
         try:
             ws_conn.close()
