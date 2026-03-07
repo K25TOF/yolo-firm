@@ -27,10 +27,12 @@ from pathlib import Path
 from invoke import (
     build_prompt,
     extract_memory_update,
+    get_engineer_tools,
     load_context,
     parse_context_manifest,
     write_session_log,
 )
+from tools import run_backtest
 
 DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS_PER_TURN = 4096
@@ -152,6 +154,13 @@ def build_transcript(turns: list[TurnResult]) -> str:
     return "\n".join(lines).strip()
 
 
+TOOL_DISPATCH = {
+    "run_backtest": run_backtest,
+}
+
+MAX_TOOL_ROUNDS = 5
+
+
 def invoke_agent(
     client: object,
     agent: str,
@@ -161,10 +170,12 @@ def invoke_agent(
     memory: str | None,
     model: str,
     transcript: str = "",
+    tools: list[dict] | None = None,
 ) -> TurnResult:
     """Invoke a single agent via the Anthropic API.
 
     If transcript is provided, it is prepended to the message.
+    If tools is provided, enables tool use with automatic dispatch loop.
     """
     full_message = message
     if transcript:
@@ -174,22 +185,69 @@ def invoke_agent(
 
     prompt = build_prompt(system_prompt, docs, memory, full_message)
 
-    api_response = client.messages.create(
-        model=model,
-        max_tokens=MAX_TOKENS_PER_TURN,
-        system=prompt["system"],
-        messages=prompt["messages"],
-    )
+    create_kwargs: dict = {
+        "model": model,
+        "max_tokens": MAX_TOKENS_PER_TURN,
+        "system": prompt["system"],
+        "messages": list(prompt["messages"]),
+    }
+    if tools:
+        create_kwargs["tools"] = tools
 
-    response_text = api_response.content[0].text
+    api_response = client.messages.create(**create_kwargs)
+
+    total_in = api_response.usage.input_tokens
+    total_out = api_response.usage.output_tokens
+
+    # Tool use loop — handle tool_use blocks in response
+    messages = list(create_kwargs["messages"])
+    rounds = 0
+    while api_response.stop_reason == "tool_use" and rounds < MAX_TOOL_ROUNDS:
+        rounds += 1
+        # Collect all content blocks (text + tool_use)
+        messages.append({"role": "assistant", "content": api_response.content})
+
+        # Process each tool_use block
+        tool_results = []
+        for block in api_response.content:
+            if block.type == "tool_use":
+                fn = TOOL_DISPATCH.get(block.name)
+                if fn:
+                    print(f"  [tool] {block.name}({block.input.get('strategy_id', '?')})")
+                    result = fn(block.input)
+                else:
+                    result = {"error": f"Unknown tool: {block.name}"}
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": json.dumps(result, default=str),
+                })
+
+        messages.append({"role": "user", "content": tool_results})
+
+        api_response = client.messages.create(
+            model=model,
+            max_tokens=MAX_TOKENS_PER_TURN,
+            system=prompt["system"],
+            messages=messages,
+            tools=tools or [],
+        )
+        total_in += api_response.usage.input_tokens
+        total_out += api_response.usage.output_tokens
+
+    # Extract final text from response
+    response_text = ""
+    for block in api_response.content:
+        if hasattr(block, "text"):
+            response_text += block.text
     memory_upd = extract_memory_update(response_text)
 
     return TurnResult(
         agent=agent,
         message=message,
         response=response_text,
-        input_tokens=api_response.usage.input_tokens,
-        output_tokens=api_response.usage.output_tokens,
+        input_tokens=total_in,
+        output_tokens=total_out,
         memory_update=memory_upd,
     )
 
@@ -325,7 +383,11 @@ def connect_ws(port: int = 8003) -> object | None:
     try:
         from websockets.sync.client import connect
 
-        return connect(f"ws://127.0.0.1:{port}")
+        return connect(
+            f"ws://127.0.0.1:{port}",
+            ping_interval=None,  # Disable client-side keepalive pings
+            close_timeout=5,
+        )
     except Exception:
         return None
 
@@ -465,7 +527,18 @@ def run_session(
         print("Chat UI → http://localhost:8003")
 
     def _invoke(agent, message, prompt, docs, mem, transcript=""):
-        """Invoke agent — streaming if WS connected, blocking otherwise."""
+        """Invoke agent — streaming if WS connected, blocking otherwise.
+
+        Engineer agent always uses blocking path (tool use requires it).
+        """
+        tools = get_engineer_tools() if agent == "engineer" else None
+
+        if tools:
+            # Tool use requires blocking API — no streaming
+            return invoke_agent(
+                client, agent, message, prompt, docs, mem, model,
+                transcript=transcript, tools=tools,
+            )
         if ws_conn:
             return invoke_agent_streaming(
                 client, agent, message, prompt, docs, mem, model,
@@ -602,6 +675,12 @@ def run_session(
             [d["path"] for d in eng_docs], eng_missing,
             engineer_message, turn.response,
         )
+        # Engineer uses blocking path even with WS — send completed response
+        if ws_conn:
+            send_to_ws(ws_conn, {
+                "type": "message", "speaker": "engineer",
+                "content": turn.response,
+            })
         print_turn(turn, tracker)
         if turn.memory_update:
             memory_updates.append(("engineer", turn.memory_update))

@@ -16,6 +16,7 @@ from session import (
     build_transcript,
     check_interrupt,
     generate_session_id,
+    invoke_agent,
     is_server_running,
     load_agent_context,
     run_session,
@@ -496,3 +497,120 @@ class TestWriteReviewDoc:
         log_content = log_path.read_text()
         assert result.name in log_content
         assert "Review:" in log_content
+
+
+class TestInvokeAgentToolUse:
+    """Tests for tool use support in invoke_agent."""
+
+    def _make_tool_use_response(
+        self, tool_name: str, tool_input: dict, tool_id: str = "toolu_01",
+        input_tokens: int = 100, output_tokens: int = 50,
+    ) -> MagicMock:
+        """Create a mock API response with a tool_use block."""
+        text_block = MagicMock()
+        text_block.type = "text"
+        text_block.text = "Let me run a backtest."
+
+        tool_block = MagicMock()
+        tool_block.type = "tool_use"
+        tool_block.name = tool_name
+        tool_block.input = tool_input
+        tool_block.id = tool_id
+
+        resp = MagicMock()
+        resp.content = [text_block, tool_block]
+        resp.stop_reason = "tool_use"
+        resp.usage = MagicMock(input_tokens=input_tokens, output_tokens=output_tokens)
+        return resp
+
+    def _make_text_response(
+        self, text: str, input_tokens: int = 80, output_tokens: int = 40,
+    ) -> MagicMock:
+        """Create a mock API response with only text."""
+        text_block = MagicMock()
+        text_block.type = "text"
+        text_block.text = text
+
+        resp = MagicMock()
+        resp.content = [text_block]
+        resp.stop_reason = "end_turn"
+        resp.usage = MagicMock(input_tokens=input_tokens, output_tokens=output_tokens)
+        return resp
+
+    def test_tool_use_dispatches_and_returns_final_text(self) -> None:
+        """When API returns tool_use, the tool is called and final text is returned."""
+        mock_backtest = MagicMock(return_value={
+            "strategy_id": "HYP-TEST", "trade_count": 60,
+            "inconclusive": False, "win_rate": 0.55,
+            "summary": "60 trades. Win rate: 55.0%",
+        })
+
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [
+            self._make_tool_use_response(
+                "run_backtest",
+                {"strategy_id": "HYP-TEST", "tickers": ["MOBX"], "dates": ["2026-03-03"],
+                 "entry_rules": [], "exit_rules": []},
+            ),
+            self._make_text_response("Backtest complete: 60 trades, 55% win rate."),
+        ]
+
+        tools = [{"name": "run_backtest", "description": "Run backtest",
+                  "input_schema": {"type": "object", "properties": {}}}]
+
+        with patch.dict("session.TOOL_DISPATCH", {"run_backtest": mock_backtest}):
+            result = invoke_agent(
+                client=mock_client, agent="engineer", message="Run test",
+                system_prompt="You are Engineer.", docs=[], memory=None,
+                model="claude-haiku-4-5-20251001", tools=tools,
+            )
+
+        mock_backtest.assert_called_once()
+        assert "60 trades" in result.response
+        assert mock_client.messages.create.call_count == 2
+
+    def test_tool_use_accumulates_tokens(self) -> None:
+        """Token counts include both the initial call and the tool result call."""
+        mock_backtest = MagicMock(return_value={"strategy_id": "T", "trade_count": 10})
+
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [
+            self._make_tool_use_response(
+                "run_backtest", {"strategy_id": "T", "tickers": [], "dates": [],
+                                 "entry_rules": [], "exit_rules": []},
+                input_tokens=200, output_tokens=100,
+            ),
+            self._make_text_response("Done.", input_tokens=300, output_tokens=150),
+        ]
+
+        tools = [{"name": "run_backtest", "description": "x",
+                  "input_schema": {"type": "object", "properties": {}}}]
+
+        with patch.dict("session.TOOL_DISPATCH", {"run_backtest": mock_backtest}):
+            result = invoke_agent(
+                client=mock_client, agent="engineer", message="Test",
+                system_prompt="S", docs=[], memory=None,
+                model="claude-haiku-4-5-20251001", tools=tools,
+            )
+
+        assert result.input_tokens == 500   # 200 + 300
+        assert result.output_tokens == 250  # 100 + 150
+
+    def test_no_tools_works_as_before(self) -> None:
+        """invoke_agent without tools parameter behaves unchanged."""
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = self._make_text_response(
+            "Simple response.",
+        )
+
+        result = invoke_agent(
+            client=mock_client, agent="analyst", message="Analyse this",
+            system_prompt="You are Analyst.", docs=[], memory=None,
+            model="claude-haiku-4-5-20251001",
+        )
+
+        assert result.response == "Simple response."
+        assert mock_client.messages.create.call_count == 1
+        # Verify no 'tools' key in the API call
+        call_kwargs = mock_client.messages.create.call_args
+        assert "tools" not in (call_kwargs.kwargs or {})

@@ -179,6 +179,96 @@ def build_prompt(
     }
 
 
+def get_engineer_tools() -> list[dict]:
+    """Return Anthropic tool definitions for the Engineer agent.
+
+    Returns a list of tool definitions in Anthropic API format
+    for use with messages.create(tools=...).
+    """
+    return [
+        {
+            "name": "run_backtest",
+            "description": (
+                "Execute a backtest using cached market data. Returns trade count, "
+                "win rate, PnL, and whether results are statistically conclusive "
+                "(>= 50 trades). Results are written to a CSV file."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "strategy_id": {
+                        "type": "string",
+                        "description": "Unique identifier for this strategy/hypothesis (e.g. 'HYP-001').",
+                    },
+                    "tickers": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of ticker symbols to backtest (e.g. ['MOBX', 'ASTS']).",
+                    },
+                    "dates": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of dates in YYYY-MM-DD format to backtest.",
+                    },
+                    "entry_rules": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "indicator": {"type": "string"},
+                                "operator": {"type": "string"},
+                                "value": {"type": "string"},
+                                "params": {"type": "object"},
+                            },
+                            "required": ["indicator", "operator", "value"],
+                        },
+                        "description": "Entry signal rules.",
+                    },
+                    "exit_rules": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "indicator": {"type": "string"},
+                                "operator": {"type": "string"},
+                                "value": {"type": "string"},
+                                "params": {"type": "object"},
+                            },
+                            "required": ["indicator", "operator", "value"],
+                        },
+                        "description": "Exit signal rules.",
+                    },
+                    "skip_first": {
+                        "type": "boolean",
+                        "description": "Skip the first entry signal (default: false).",
+                    },
+                    "atr_exit": {
+                        "type": "object",
+                        "properties": {
+                            "multiplier": {"type": "string"},
+                            "period": {"type": "integer"},
+                        },
+                        "description": "ATR-based stop loss. Optional.",
+                    },
+                    "volume_decay_exit": {
+                        "type": "object",
+                        "properties": {
+                            "lookback": {"type": "integer"},
+                            "threshold": {"type": "string"},
+                        },
+                        "description": "Volume decay exit. Optional.",
+                    },
+                    "force_close_eod": {
+                        "type": "boolean",
+                        "description": "Force close all positions at end of day (default: true).",
+                    },
+                },
+                "required": ["strategy_id", "tickers", "dates", "entry_rules", "exit_rules"],
+            },
+        },
+    ]
+
+
 def main() -> None:
     """CLI entry point for single-agent invocation."""
     parser = argparse.ArgumentParser(description="Invoke a single YOLO Org Learning agent.")
