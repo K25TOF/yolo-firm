@@ -34,6 +34,7 @@ from invoke import (
     parse_context_manifest,
     write_session_log,
 )
+from notify import send_pushover
 from tools import run_backtest, update_memory
 
 DEFAULT_MODEL = "claude-haiku-4-5-20251001"
@@ -51,6 +52,9 @@ INTERRUPT_FLAG = AGENTS_DIR / "session-interrupt.flag"
 
 VALID_AGENTS = {"analyst", "engineer", "manager"}
 _NEXT_RE = re.compile(r"\[NEXT:\s*(\w+)\s*\]", re.IGNORECASE)
+_BLOCKER_RE = re.compile(r"\[BLOCKER:\s*(.+?)\s*\]", re.IGNORECASE)
+_SCOPE_BLOCKING_RE = re.compile(r"\[SCOPE REQUEST BLOCKING:\s*(.+?)\s*\]", re.IGNORECASE)
+_SCOPE_RE = re.compile(r"\[SCOPE REQUEST:\s*(.+?)\s*\]", re.IGNORECASE)
 
 
 def _parse_next_agent(text: str) -> str | None:
@@ -63,6 +67,19 @@ def _parse_next_agent(text: str) -> str | None:
         return None
     agent = match.group(1).lower()
     return agent if agent in VALID_AGENTS else None
+
+
+@dataclass
+class SessionResult:
+    """Result of a complete session, returned by run_session."""
+
+    session_id: str
+    outcome: str  # "complete" | "blocker" | "cancelled" | "turn_limit" | "dry_run"
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+    duration_seconds: float
+    task_summary: str
 
 
 @dataclass
@@ -506,14 +523,16 @@ def run_session(
     session_id: str,
     dry_run: bool,
     max_turns: int = 50,
-) -> None:
+) -> SessionResult:
     """Run a dynamic multi-agent research session.
 
     Manager controls routing via [NEXT: agent] and [SESSION_COMPLETE] tags.
     Non-manager turns always return to Manager.
+    Returns SessionResult with outcome, token usage, cost, and duration.
     """
     global _tracker, _log_path  # noqa: PLW0603
 
+    start_time = time.monotonic()
     agents_dir = AGENTS_DIR
     firm_repo = FIRM_REPO
     yolo_repo = YOLO_REPO
@@ -544,7 +563,12 @@ def run_session(
         print(f"  Model: {model}")
         print(f"  Max turns: {max_turns}")
         print("=== END DRY RUN ===")
-        return
+        return SessionResult(
+            session_id=session_id, outcome="dry_run",
+            input_tokens=0, output_tokens=0, cost_usd=0.0,
+            duration_seconds=time.monotonic() - start_time,
+            task_summary="Dry run — no API calls made.",
+        )
 
     # --- LIVE MODE ---
     client = create_client()
@@ -649,11 +673,13 @@ def run_session(
     current_agent = "manager"
     current_message = open_message
     cancelled = False
+    outcome = "complete"
 
     for turn_num in range(max_turns):
         # Check interrupt before each turn
         if _handle_interrupt():
             cancelled = True
+            outcome = "cancelled"
             break
 
         # Warn when approaching turn limit
@@ -692,6 +718,46 @@ def run_session(
 
         # --- ROUTING LOGIC ---
         if current_agent == "manager":
+            # Check for blocker tag
+            blocker_match = _BLOCKER_RE.search(turn.response)
+            if blocker_match:
+                desc = blocker_match.group(1)
+                flag_path = agents_dir / "blocker.flag"
+                flag_path.write_text(desc)
+                send_pushover(
+                    "Blocker", f"🚨 Blocker: {desc}. Research paused.",
+                    priority=1,
+                )
+                outcome = "blocker"
+                break
+
+            # Check for blocking scope request (before non-blocking)
+            scope_blocking_match = _SCOPE_BLOCKING_RE.search(turn.response)
+            if scope_blocking_match:
+                desc = scope_blocking_match.group(1)
+                flag_path = agents_dir / "scope-request.flag"
+                flag_path.write_text(desc)
+                send_pushover(
+                    "Scope Request (Blocking)",
+                    f"📋 Scope request: {desc}. Approve or reject.",
+                    priority=0,
+                )
+                outcome = "blocker"
+                break
+
+            # Check for non-blocking scope request
+            scope_match = _SCOPE_RE.search(turn.response)
+            if scope_match and not scope_blocking_match:
+                desc = scope_match.group(1)
+                flag_path = agents_dir / "scope-request.flag"
+                flag_path.write_text(desc)
+                send_pushover(
+                    "Scope Request",
+                    f"📋 Scope request: {desc}. Approve or reject.",
+                    priority=0,
+                )
+                # Non-blocking — session continues
+
             # Check for session complete
             if "[SESSION_COMPLETE]" in turn.response:
                 # Write review doc on final manager turn
@@ -725,6 +791,10 @@ def run_session(
                 "Here is the updated session transcript.\n\n"
                 "Continue the session per protocol."
             )
+    else:
+        # Loop exhausted without break → turn limit reached
+        if outcome == "complete":
+            outcome = "turn_limit"
 
     # --- SUMMARY ---
     print(f"\n{tracker.summary()}")
@@ -761,6 +831,22 @@ def run_session(
             pass
 
     print("\n=== SESSION COMPLETE ===")
+
+    elapsed = time.monotonic() - start_time
+    cost = tracker.total_input * COST_PER_INPUT + tracker.total_output * COST_PER_OUTPUT
+    summary = ""
+    if tracker.turns:
+        summary = tracker.turns[-1].response[:200]
+
+    return SessionResult(
+        session_id=session_id,
+        outcome=outcome,
+        input_tokens=tracker.total_input,
+        output_tokens=tracker.total_output,
+        cost_usd=round(cost, 6),
+        duration_seconds=round(elapsed, 2),
+        task_summary=summary,
+    )
 
 
 def main() -> None:
