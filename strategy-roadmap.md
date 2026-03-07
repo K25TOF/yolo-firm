@@ -113,5 +113,15 @@ Security hardening, capital policy, position sizing.
 - **Experiments completed:** EXP-001 to EXP-023
 - **Active strategy:** vol_filter v2.1.0 (skip-first variant)
 - **Book extraction:** Pass 1 TOC complete (~800 books), Pass 2 ~65 books extracted
-- **Indicators available:** 24 registered in backtester
-- **Next experiment focus:** Grinder strategy (IDEA-016), book-derived hypotheses
+- **Indicators available:** 25 registered in backtester (incl. ema_gap_acceleration)
+- **Operators available:** crosses_above, crosses_below, greater_than, less_than
+
+### HYP-025 — Grinder Strategy Phase 1
+
+**Status: INCONCLUSIVE — config error**
+
+- **Original result:** 653 trades, 28.6% WR, -353.6% P&L — initially classified as FAILED
+- **Audit finding (LC-2025-002):** Exit rule `ema_gap crosses_below 2.0` was logically inverted relative to entry `crosses_above 1.0`. Positions trapped to EOD force-close (avg hold 52-70 bars vs 7.5 for vol_filter). All PnL/WR results disqualified.
+- **Acceleration filter:** Directionally promising — reduces trades 239→109 (-54%), improves WR by +5.8pp
+- **Corrected re-test pending:** Exit changed to `ema_gap crosses_below 0.5` (fade-from-entry logic)
+- **Next:** PO to approve corrected re-test config

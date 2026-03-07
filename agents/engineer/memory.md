@@ -13,6 +13,38 @@
 - Data quality issues observed: VWAP noisy on sub-$1 stocks (bid-ask 1-5%), single blocks shift VWAP 0.5-2%
 - Cache state: ~5,000 tickers across 180 trading days (2025-05-29 to 2026-03-04), ~98k bar files
 
+## Exit Rule Design Principle (LC-2025-002 Audit)
+
+**Exit threshold must be BELOW entry threshold** to mirror vol_filter fade logic.
+
+- vol_filter: entry `crosses_above 3.0`, exit `crosses_below 1.5` — exit fires when momentum fades below entry level ✓
+- HYP-025 error: entry `crosses_above 1.0`, exit `crosses_below 2.0` — exit only fires when momentum STRENGTHENS past 2.0% — inverted logic ✗
+
+The inverted config traps positions to EOD force-close (52–70 bar avg hold vs 7.5 for vol_filter). This distorts all PnL and WR results and is disqualifying for the failure verdict. A `crosses_above 1.0` entry requires an exit like `crosses_below 0.5` — not `crosses_below 2.0`.
+
+**Corrected HYP-025 re-test exit:** `ema_gap crosses_below 0.5` (or equivalent below entry threshold).
+
+## HYP-025 Diagnostic Results (LC-2025-002 — 10-ticker × 16-date universe, skip_first=true)
+
+- DIAG-A1 (`crosses_above 1.0` + VWAP >2%, no accel filter): 239T, 50.2% WR, +230.0% PnL, 52.6 avg hold bars
+- DIAG-A2 (same + `accel < 1.0`): 109T, 56.0% WR, +107.3% PnL, 69.9 avg hold bars
+- DIAG-A3 (vol_filter baseline — `crosses_above 3.0`, vol>2x): 87T, 34.4% WR, +41.6% PnL, 7.5 avg hold bars
+
+**Acceleration filter effect:** 239→109 (-54% trade reduction), +5.8pp WR improvement — directionally real but insufficient to normalise trade count at a 1.0% entry threshold.
+
+**`crosses_above 1.0` generates ~2.7× more raw crossings than `crosses_above 3.0`** across same universe.
+
+**HYP-025 verdict:** INCONCLUSIVE — config error (inverted exit rule), not a clean failure. Entry signal (ema_gap 1.0% + VWAP 2% + accel < 1.0) has not been fairly evaluated. Corrected re-test warranted.
+
+## Skip Rate Structural Finding (LC-2025-002)
+
+67% skip rate on scanner-flagged universes is STRUCTURAL — not hypothesis-specific:
+- Confirmed: identical skip count (98/160 pairs) across all three diagnostic configs on same universe
+- Causes: missing cache files or sub-threshold bar counts for ticker-date combinations
+- Not a grinder strategy artifact
+
+**Future batch experiment requirement:** Capture cache-miss vs bar-count-too-low breakdown separately in skip reporting. This matters for diagnosing whether skips are a universe selection problem (cache-miss) or a data thinness problem (bar-count).
+
 ## Grinder Strategy Backtest Plan (HYP-025)
 
 **Indicators required:**
@@ -21,12 +53,12 @@
 - atr (registered)
 - ema_gap_acceleration (registered — 3-bar ROC of ema_gap, params: fast/slow/lookback)
 
-**Phase 1 scope (PO-approved):**
+**Phase 1 scope (PO-approved — re-test pending PO sign-off on corrected config):**
 - Entry: ema_gap 1.0% + VWAP 2% + acceleration < 1%
-- Exit: ema_gap 2.0% OR VWAP break OR ATR 1.5x
+- Exit (CORRECTED): ema_gap crosses_below 0.5% OR VWAP break OR ATR 1.5x
 - Dataset: 49 tickers, Feb 10–Mar 4 (same as EXP-023)
 - Target: 40%+ win rate, measurable improvement on vol_filter-skipped tickers
-- Effort: 45 min walk + 15 min indicator = 60 min
+- Original exit (`crosses_below 2.0`) was a config error — disqualifies original results
 
 **Phase 2 (deferred, conditional):**
 - Add volume bounds 1.5–4x if Phase 1 validates

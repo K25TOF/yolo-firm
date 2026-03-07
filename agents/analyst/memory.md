@@ -4,7 +4,7 @@
 
 - Active strategy: vol_filter_ema10 v2.0.0 (82T, 46% WR, +158.9% on 49 tickers)
 - Known trade profiles: impulse (vol_filter), grinder (IDEA-016/HYP-025)
-- Closed hypotheses: HYP-025 Phase 1 (grinder entry/exit — FAILED: 28.6% WR, -353.6% P&L)
+- Closed hypotheses: none — HYP-025 Phase 1 status revised (see below)
 
 ## Research patterns
 
@@ -28,9 +28,13 @@
 **Evidence strength:**
 - VWAP distance (2%+): Weak — EXP-012 marginal diff, HYP-024 inconclusive
 - Volume bounds (1.5–4x): Untested on grinder sample, extrapolated from vol_filter
-- Acceleration filter: Strong — EXP-021 showed accelerating gap predicts -54.9% PnL
+- Acceleration filter: Strong — EXP-021 showed accelerating gap predicts -54.9% PnL; DIAG-A2 (LC-2025-002 audit) confirmed +5.8pp WR improvement from filter (239→109 trades, 50.2%→56.0%)
 
-**Result:** Phase 1 FAILED (28.6% WR, -353.6% P&L). Hypothesis closed — any iteration requires a new hypothesis.
+**Result:** Phase 1 INCONCLUSIVE — config error (exit rule inversion) prevents fair evaluation. Original -353.6% P&L / 28.6% WR verdict does not stand. Re-test required.
+
+**Exit rule error (LC-2025-002):** Original HYP-025 used `ema_gap crosses_below 2.0` as exit with `crosses_above 1.0` entry. This is logically inverted — exit only fires when gap *strengthens* past 2.0%, causing most positions to be held 50–70 bars to EOD force-close. The WR and PnL results are contaminated and cannot be used as evidence for or against the grinder entry signal.
+
+**Corrected exit rule for re-test:** Exit threshold must be *below* entry threshold (fade-from-entry logic). Suggested: `ema_gap crosses_below 0.5` — mirrors vol_filter's pattern (entry 3.0%, exit 1.5%; grinder entry 1.0%, exit ~0.5%).
 
 ## Lesson: Rule Design Must Be Segregated From Rule Validation
 
@@ -44,6 +48,14 @@ HYP-025 entry rules were designed using EXP-021 data (Feb 24–Mar 3). Using the
 - Gap_accel distribution on Feb 10–23 must show separation at 1.0% threshold
 - Top 3 trades must not concentrate in Feb 24–Mar 3 (design subset)
 - No single trade > +15% (outlier dependency check)
+
+## Lesson: Exit Rule Must Mirror Entry Logic (fade-from-entry)
+
+For any momentum strategy using EMA gap: exit threshold must be *below* entry threshold. The gap must fade from entry level before exit fires — not strengthen. Violation of this principle causes positions to be held indefinitely (until EOD force-close), contaminating all WR and PnL results.
+
+- vol_filter: entry 3.0%, exit 1.5% ✓
+- HYP-025 original: entry 1.0%, exit 2.0% ✗ (inverted — disqualifying)
+- HYP-025 corrected: entry 1.0%, exit ~0.5% (to be validated)
 
 ## Book knowledge (key extracts)
 

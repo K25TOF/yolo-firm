@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Operational flags (set/deleted at runtime)
+pause.flag
+blocker.flag
+scope-request.flag
+session-interrupt.flag
+
+# Run logs (operational, not versioned)
+agenda-run-log.md
+memory-pending.md
+
+# Session logs and reviews (operational)
+session-log/
+reviews/

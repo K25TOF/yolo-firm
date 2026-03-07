@@ -11,6 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
 
 from session import (
+    SessionResult,
     TokenTracker,
     TurnResult,
     build_transcript,
@@ -236,7 +237,7 @@ class TestRunSession:
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
-            run_session(
+            result = run_session(
                 question="Test question",
                 open_mode=False,
                 model="claude-haiku-4-5-20251001",
@@ -245,6 +246,11 @@ class TestRunSession:
             )
 
         assert mock_client.messages.create.call_count == 3
+        assert isinstance(result, SessionResult)
+        assert result.session_id == "test-session"
+        assert result.outcome == "complete"
+        assert result.input_tokens > 0
+        assert result.cost_usd > 0
 
     @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
@@ -308,14 +314,16 @@ class TestRunSession:
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
-            run_session(
+            result = run_session(
                 question="Test",
                 open_mode=False,
                 model="claude-haiku-4-5-20251001",
                 session_id="dry-test",
                 dry_run=True,
             )
-        # If we got here without error and no API key, dry run works
+        assert isinstance(result, SessionResult)
+        assert result.outcome == "dry_run"
+        assert result.input_tokens == 0
 
     @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
@@ -795,8 +803,176 @@ class TestDynamicSession:
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
-            run_session(
+            result = run_session(
                 question="Test", open_mode=False,
                 model="claude-haiku-4-5-20251001",
                 session_id="dry-test-2", dry_run=True,
             )
+        assert result.outcome == "dry_run"
+
+
+class TestBlockerAndScopeRequest:
+    """Tests for [BLOCKER:] and [SCOPE REQUEST:] tag detection."""
+
+    @pytest.fixture
+    def session_env(self, tmp_path: Path) -> dict:
+        """Create a full agent tree for session tests."""
+        agents = tmp_path / "agents"
+        agents.mkdir()
+        log_dir = agents / "session-log"
+        log_dir.mkdir()
+
+        for agent in ("manager", "analyst", "engineer"):
+            d = agents / agent
+            d.mkdir()
+            (d / "system-prompt.md").write_text(f"You are {agent.title()}.")
+            (d / "context-manifest.md").write_text(
+                f"# {agent.title()} — Context Manifest\n\n"
+                "## Firm Documents (yolo-firm/)\n\n"
+                "| Document | Path | Purpose |\n"
+                "|---|---|---|\n"
+                "| RACI | `raci.md` | Roles |\n",
+            )
+
+        (tmp_path / "raci.md").write_text("# RACI\nRoles.")
+        (tmp_path / "yolo").mkdir()
+
+        return {
+            "agents_dir": agents,
+            "firm_repo": tmp_path,
+            "yolo_repo": tmp_path / "yolo",
+            "log_dir": log_dir,
+        }
+
+    def _mock_api_response(self, text: str, input_tokens: int = 100, output_tokens: int = 50):
+        """Create a mock Anthropic API response."""
+        mock = MagicMock()
+        text_block = MagicMock()
+        text_block.type = "text"
+        text_block.text = text
+        mock.content = [text_block]
+        mock.stop_reason = "end_turn"
+        mock.usage = MagicMock(input_tokens=input_tokens, output_tokens=output_tokens)
+        return mock
+
+    @patch("session.send_pushover", return_value=True)
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_blocker_tag_writes_flag(
+        self, mock_create: MagicMock, mock_ensure: MagicMock,
+        mock_pushover: MagicMock, session_env: dict,
+    ) -> None:
+        """[BLOCKER:] tag writes blocker.flag and ends session."""
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response(
+                "Cannot proceed. [BLOCKER: ema_gap_acceleration indicator missing]",
+            ),
+        ]
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            result = run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="blocker-test", dry_run=False,
+            )
+
+        assert result.outcome == "blocker"
+        flag_path = session_env["agents_dir"] / "blocker.flag"
+        assert flag_path.exists()
+        assert "ema_gap_acceleration" in flag_path.read_text()
+
+    @patch("session.send_pushover", return_value=True)
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_blocker_tag_triggers_notification(
+        self, mock_create: MagicMock, mock_ensure: MagicMock,
+        mock_pushover: MagicMock, session_env: dict,
+    ) -> None:
+        """[BLOCKER:] tag sends high-priority Pushover notification."""
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response("[BLOCKER: Missing data for HYP-026]"),
+        ]
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="blocker-notify", dry_run=False,
+            )
+
+        mock_pushover.assert_called_once()
+        call_kwargs = mock_pushover.call_args
+        assert call_kwargs[1].get("priority") == 1 or call_kwargs[0][2] == 1
+
+    @patch("session.send_pushover", return_value=True)
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_scope_request_tag_writes_flag(
+        self, mock_create: MagicMock, mock_ensure: MagicMock,
+        mock_pushover: MagicMock, session_env: dict,
+    ) -> None:
+        """[SCOPE REQUEST:] writes scope-request.flag but continues session."""
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response(
+                "Interesting finding. [SCOPE REQUEST: Test squeeze indicators] "
+                "[NEXT: analyst]",
+            ),
+            self._mock_api_response("Analysis."),
+            self._mock_api_response("Closing. [SESSION_COMPLETE]"),
+        ]
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            result = run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="scope-test", dry_run=False,
+            )
+
+        # Session continues (3 API calls, not 1)
+        assert mock_client.messages.create.call_count == 3
+        assert result.outcome == "complete"
+        flag_path = session_env["agents_dir"] / "scope-request.flag"
+        assert flag_path.exists()
+        assert "squeeze indicators" in flag_path.read_text()
+
+    @patch("session.send_pushover", return_value=True)
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_scope_request_blocking_stops_session(
+        self, mock_create: MagicMock, mock_ensure: MagicMock,
+        mock_pushover: MagicMock, session_env: dict,
+    ) -> None:
+        """[SCOPE REQUEST BLOCKING:] writes flag and ends session."""
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response(
+                "[SCOPE REQUEST BLOCKING: Need live data feed for validation]",
+            ),
+        ]
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            result = run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="scope-block", dry_run=False,
+            )
+
+        assert result.outcome == "blocker"
+        assert mock_client.messages.create.call_count == 1
+        flag_path = session_env["agents_dir"] / "scope-request.flag"
+        assert flag_path.exists()
