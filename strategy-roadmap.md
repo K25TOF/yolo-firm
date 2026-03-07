@@ -116,6 +116,32 @@ Security hardening, capital policy, position sizing.
 - **Indicators available:** 25 registered in backtester (incl. ema_gap_acceleration)
 - **Operators available:** crosses_above, crosses_below, greater_than, less_than
 
+### LC-2025-006 — Full Re-Validation Synthesis
+
+**Class A re-runs on momentum universe (5,755 pairs, 183 dates):**
+
+| Experiment | Original | Re-run | Verdict |
+|---|---|---|---|
+| EXP-010/011 | +80.3%, 50% WR | -40.1%, 32.7% WR | **Overturned** — selection bias |
+| EXP-014 | +158.9%, 46% WR | -22.3%, 37.0% WR | **Overturned** — selection bias |
+| EXP-016/023 | +168.8%/+67.4% | -398.1%, 32.0% WR | **Universe mismatch** — WR stable |
+| EXP-022 | +50.7%, 50% WR | -416.4%, 30.8% WR | **Overturned** — selection bias |
+
+**Key findings:**
+- Vol_filter has no edge on the broad momentum universe — not production ready
+- Original positive results were artefacts of hand-picked ticker sets
+- Skip-first is the strongest validated filter (33pp WR gap on scanner universe)
+- ATR exit marginally helps (+1.2pp WR) — driven by moderate movers only
+- Gap acceleration filter shows consistent promise (+5.8pp WR, multi-source)
+
+**Ranked leads for next phase:**
+1. HYP-025 corrected re-test (low effort, high value)
+2. Gap acceleration filter on vol_filter (strong evidence)
+3. ATR isolation on broad universe (closes open question)
+4. Combined overextended entry filter — IDEA-018
+5. RVOL threshold sensitivity (3x/4x/5x)
+6. VWAP asymmetric threshold — IDEA-017
+
 ### HYP-025 — Grinder Strategy Phase 1
 
 **Status: INCONCLUSIVE — config error**
