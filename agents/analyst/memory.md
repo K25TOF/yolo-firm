@@ -4,13 +4,14 @@
 
 - Active strategy: vol_filter_ema10 v2.0.0 (82T, 46% WR, +158.9% on 49 tickers)
 - Known trade profiles: impulse (vol_filter), grinder (IDEA-016/HYP-025)
-- Open hypotheses: HYP-025 Phase 1 (grinder entry/exit, PO-approved, awaiting backtest)
+- Closed hypotheses: HYP-025 Phase 1 (grinder entry/exit — FAILED: 28.6% WR, -353.6% P&L)
 
 ## Research patterns
 
 - What has worked: skip-first filter (+75.2pp improvement EXP-022), non-accelerating gap (EXP-021)
 - What has failed: HYP-024 VWAP distance filter (inconclusive, +4.2pp below +5pp bar)
-- Indicators not yet tested: ema_gap_acceleration (needed for HYP-025), squeeze indicators, force index
+- Indicators not yet tested: squeeze indicators, force index
+- Indicators tested: ema_gap_acceleration (registered and working — used in HYP-025 Phase 1)
 
 ## Grinder Profile Characterization (HYP-025)
 
@@ -29,7 +30,7 @@
 - Volume bounds (1.5–4x): Untested on grinder sample, extrapolated from vol_filter
 - Acceleration filter: Strong — EXP-021 showed accelerating gap predicts -54.9% PnL
 
-**Next:** Phase 1 backtest to validate core entry. Phase 2 (volume refinement) conditional.
+**Result:** Phase 1 FAILED (28.6% WR, -353.6% P&L). Hypothesis closed — any iteration requires a new hypothesis.
 
 ## Lesson: Rule Design Must Be Segregated From Rule Validation
 
