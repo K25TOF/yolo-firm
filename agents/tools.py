@@ -74,9 +74,13 @@ def _load_cached_bars(ticker: str, date_str: str, yolo_repo: Path) -> list:
 
 
 def _discover_pairs_from_cache(
-    yolo_repo: Path, dates: list[str],
+    yolo_repo: Path, dates: list[str] | None = None,
 ) -> list[tuple[str, str]]:
     """Scan day_sim cache for all ticker-date pairs matching requested dates.
+
+    Args:
+        yolo_repo: Path to yolo repository root.
+        dates: List of dates to filter by, or None to include all dates.
 
     Returns:
         List of (ticker, date) tuples found in cache.
@@ -85,7 +89,7 @@ def _discover_pairs_from_cache(
     if not cache_dir.is_dir():
         return []
 
-    date_set = set(dates)
+    date_set = set(dates) if dates else None
     pairs: list[tuple[str, str]] = []
     for f in cache_dir.iterdir():
         if not f.name.endswith("_1min.json"):
@@ -95,7 +99,7 @@ def _discover_pairs_from_cache(
         if len(parts) != 3:
             continue
         ticker, date_str = parts[0], parts[1]
-        if date_str in date_set:
+        if date_set is None or date_str in date_set:
             pairs.append((ticker, date_str))
 
     return sorted(pairs)
@@ -134,6 +138,51 @@ def _run_single_backtest(
     result = engine.run()
     summary = reports.summarise(result)
     return result, summary
+
+
+def _compute_distribution_metrics(all_trades: list[dict]) -> dict:
+    """Compute per-trade distribution metrics from aggregated trade dicts.
+
+    Returns dict with: avg_winner_pct, avg_loser_pct, median_pnl_pct,
+    max_single_trade_pnl_pct, top10_pnl_contribution_pct.
+    All values are None if no trades.
+    """
+    pnls = []
+    for t in all_trades:
+        raw = t.get("pnl_pct", "")
+        if raw:
+            pnls.append(float(raw))
+
+    if not pnls:
+        return {
+            "avg_winner_pct": None,
+            "avg_loser_pct": None,
+            "median_pnl_pct": None,
+            "max_single_trade_pnl_pct": None,
+            "top10_pnl_contribution_pct": None,
+        }
+
+    winners = [p for p in pnls if p > 0]
+    losers = [p for p in pnls if p <= 0]
+    sorted_pnls = sorted(pnls)
+    n = len(sorted_pnls)
+    median = (sorted_pnls[n // 2] if n % 2 == 1
+              else (sorted_pnls[n // 2 - 1] + sorted_pnls[n // 2]) / 2)
+
+    total_abs_pnl = sum(abs(p) for p in pnls)
+    top10 = sorted(pnls, key=abs, reverse=True)[:10]
+    top10_contribution = (
+        sum(abs(p) for p in top10) / total_abs_pnl * 100
+        if total_abs_pnl > 0 else 0.0
+    )
+
+    return {
+        "avg_winner_pct": round(sum(winners) / len(winners), 4) if winners else 0.0,
+        "avg_loser_pct": round(sum(losers) / len(losers), 4) if losers else 0.0,
+        "median_pnl_pct": round(median, 4),
+        "max_single_trade_pnl_pct": round(max(pnls), 4),
+        "top10_pnl_contribution_pct": round(top10_contribution, 2),
+    }
 
 
 def _write_trades_csv(all_trades: list[dict], results_dir: Path, strategy_id: str) -> Path:
@@ -208,8 +257,8 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
 
     _ensure_yolo_on_path(yolo_repo)
 
-    # Validate required fields
-    required = ["strategy_id", "tickers", "dates", "entry_rules", "exit_rules"]
+    # Validate required fields (dates is optional — defaults to "all")
+    required = ["strategy_id", "tickers", "entry_rules", "exit_rules"]
     missing = [k for k in required if k not in config]
     if missing:
         return {
@@ -233,12 +282,27 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
         }
 
     tickers = config["tickers"]
-    dates = config["dates"]
+    dates = config.get("dates")
     momentum_universe = config.get("momentum_universe", False)
+
+    # Normalise dates — "all", [], None, ["all"] all mean "use all cached dates"
+    all_dates = (
+        dates is None
+        or dates == "all"
+        or dates == ["all"]
+        or (isinstance(dates, list) and len(dates) == 0)
+    )
 
     # Build ticker-date pairs
     if tickers == "all" or tickers == ["all"]:
-        ticker_date_pairs = _discover_pairs_from_cache(yolo_repo, dates)
+        ticker_date_pairs = _discover_pairs_from_cache(
+            yolo_repo, dates=None if all_dates else dates,
+        )
+    elif all_dates:
+        ticker_date_pairs = _discover_pairs_from_cache(yolo_repo, dates=None)
+        # Filter to only requested tickers
+        ticker_set = set(tickers)
+        ticker_date_pairs = [(t, d) for t, d in ticker_date_pairs if t in ticker_set]
     else:
         ticker_date_pairs = [
             (ticker, date_str) for date_str in dates for ticker in tickers
@@ -320,6 +384,8 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
         summary_parts.append(f"Errors: {len(errors)} ticker/dates skipped")
     summary_text = ". ".join(summary_parts)
 
+    distribution = _compute_distribution_metrics(all_trades)
+
     return {
         "strategy_id": strategy_id,
         "trade_count": trade_count,
@@ -333,4 +399,5 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
         "pairs_evaluated": pairs_evaluated,
         "pairs_skipped_momentum": pairs_skipped_momentum,
         "pairs_skipped_other": pairs_skipped_other,
+        **distribution,
     }

@@ -36,7 +36,8 @@ Executes backtests against cached market data. Use it when the session requires 
 **Tool: run_backtest**
 - Input: strategy config (strategy_id, tickers, dates, entry_rules, exit_rules, optional: skip_first, atr_exit, volume_decay_exit, force_close_eod, momentum_universe)
 - `tickers` accepts a list of ticker strings OR `"all"` to scan all cached tickers for the given dates
-- Output: trade_count, win_rate, total_pnl_pct, avg_hold_bars, inconclusive flag, CSV path, momentum_universe_enabled, pairs_evaluated, pairs_skipped_momentum, pairs_skipped_other
+- `dates` accepts a list of date strings, `"all"`, `["all"]`, `[]`, or omit entirely — all mean "use all cached dates"
+- Output: trade_count, win_rate, total_pnl_pct, avg_hold_bars, inconclusive flag, CSV path, momentum_universe_enabled, pairs_evaluated, pairs_skipped_momentum, pairs_skipped_other, avg_winner_pct, avg_loser_pct, median_pnl_pct, max_single_trade_pnl_pct, top10_pnl_contribution_pct
 - The `inconclusive` flag is True when trade_count < 50 — report this clearly
 - Results are written to CSV at `analysis/research/results/`
 - Uses cached 1-min bars only — no live API calls
