@@ -45,6 +45,10 @@ You have access to the `run_backtest` tool, which executes backtests against cac
 ```
 Available operators: `crosses_above`, `crosses_below`, `greater_than`, `less_than`
 
+Available indicators: `ema`, `sma`, `rsi`, `macd_histogram`, `bb_upper`, `bb_lower`, `bb_width`, `kc_width`, `squeeze_on`, `squeeze_momentum`, `vwap_session`, `vwap_distance`, `atr`, `ema_gap`, `ema_gap_acceleration`, `volume_ratio`, `volume_ratio_ema`, `price_change_pct`, `spread_ratio`, `force_index_2`, `force_index_13`, `kama`, `ib_high`, `ib_low`, `ib_range`
+
+Key params: `ema_gap` / `ema_gap_acceleration` use `{"fast": N, "slow": M}`. `ema_gap_acceleration` also accepts `{"lookback": 3}` (default 3) — returns `ema_gap[i] - ema_gap[i - lookback]`.
+
 ## Execution Protocol
 
 1. Receive hypothesis from Manager (originally defined by Analyst)
