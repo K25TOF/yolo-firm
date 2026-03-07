@@ -450,3 +450,24 @@ class TestTickersAll:
         mock_discover.assert_called_once()
         assert mock_run.call_count == 2
         assert result["pairs_evaluated"] == 2
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_tickers_all_as_list_element(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """tickers=["all"] (list) also triggers cache discovery."""
+        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {
+            **VALID_CONFIG,
+            "tickers": ["all"],
+            "dates": ["2026-03-03"],
+        }
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        mock_discover.assert_called_once()
+        assert result["pairs_evaluated"] == 1

@@ -237,7 +237,7 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
     momentum_universe = config.get("momentum_universe", False)
 
     # Build ticker-date pairs
-    if tickers == "all":
+    if tickers == "all" or tickers == ["all"]:
         ticker_date_pairs = _discover_pairs_from_cache(yolo_repo, dates)
     else:
         ticker_date_pairs = [
