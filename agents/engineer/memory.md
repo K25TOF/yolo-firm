@@ -21,7 +21,7 @@ Standard universe filter for all momentum strategy backtesting. Enabled via `mom
 
 - Common failure modes: tight AND filters produce too few trades for statistical significance
 - Data quality issues observed: VWAP noisy on sub-$1 stocks (bid-ask 1-5%), single blocks shift VWAP 0.5-2%
-- Cache state: ~5,000 tickers across 180 trading days (2025-05-29 to 2026-03-04), ~98k bar files
+- Cache state: 5,088 tickers across 200 trading days (2025-05-29 to 2026-03-04), 211k bar files
 
 ## Exit Rule Design Principle (LC-2025-002 Audit)
 

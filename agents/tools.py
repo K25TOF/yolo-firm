@@ -73,6 +73,34 @@ def _load_cached_bars(ticker: str, date_str: str, yolo_repo: Path) -> list:
     return [Bar.model_validate(r) for r in data]
 
 
+def _discover_pairs_from_cache(
+    yolo_repo: Path, dates: list[str],
+) -> list[tuple[str, str]]:
+    """Scan day_sim cache for all ticker-date pairs matching requested dates.
+
+    Returns:
+        List of (ticker, date) tuples found in cache.
+    """
+    cache_dir = yolo_repo / "analysis" / "cache" / "day_sim"
+    if not cache_dir.is_dir():
+        return []
+
+    date_set = set(dates)
+    pairs: list[tuple[str, str]] = []
+    for f in cache_dir.iterdir():
+        if not f.name.endswith("_1min.json"):
+            continue
+        # Format: {TICKER}_{YYYY-MM-DD}_1min.json
+        parts = f.stem.rsplit("_", 2)  # [ticker, date, "1min"]
+        if len(parts) != 3:
+            continue
+        ticker, date_str = parts[0], parts[1]
+        if date_str in date_set:
+            pairs.append((ticker, date_str))
+
+    return sorted(pairs)
+
+
 def _passes_momentum_filter(bars: list) -> bool:
     """Check if bars show >= 50% intraday price range.
 
@@ -208,6 +236,14 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
     dates = config["dates"]
     momentum_universe = config.get("momentum_universe", False)
 
+    # Build ticker-date pairs
+    if tickers == "all":
+        ticker_date_pairs = _discover_pairs_from_cache(yolo_repo, dates)
+    else:
+        ticker_date_pairs = [
+            (ticker, date_str) for date_str in dates for ticker in tickers
+        ]
+
     all_trades: list[dict] = []
     total_pnl = Decimal("0")
     wins = 0
@@ -218,45 +254,44 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
     pairs_skipped_momentum = 0
     pairs_skipped_other = 0
 
-    for date_str in dates:
-        for ticker in tickers:
-            try:
-                if momentum_universe:
-                    bars_raw = _load_cached_bars(ticker, date_str, yolo_repo)
-                    bar_dicts = [{"h": float(b.high), "l": float(b.low)} for b in bars_raw]
-                    if not _passes_momentum_filter(bar_dicts):
-                        pairs_skipped_momentum += 1
-                        continue
+    for ticker, date_str in ticker_date_pairs:
+        try:
+            if momentum_universe:
+                bars_raw = _load_cached_bars(ticker, date_str, yolo_repo)
+                bar_dicts = [{"h": float(b.high), "l": float(b.low)} for b in bars_raw]
+                if not _passes_momentum_filter(bar_dicts):
+                    pairs_skipped_momentum += 1
+                    continue
 
-                result, summary = _run_single_backtest(
-                    ticker, date_str, strategy, yolo_repo,
-                )
-                pairs_evaluated += 1
-                n = summary["n_closed"]
-                total_closed += n
-                if n > 0:
-                    wins += int(summary["win_rate"] * n)
-                    total_pnl += Decimal(str(summary["total_pnl_pct"]))
-                    total_hold += summary["avg_hold_bars"] * n
+            result, summary = _run_single_backtest(
+                ticker, date_str, strategy, yolo_repo,
+            )
+            pairs_evaluated += 1
+            n = summary["n_closed"]
+            total_closed += n
+            if n > 0:
+                wins += int(summary["win_rate"] * n)
+                total_pnl += Decimal(str(summary["total_pnl_pct"]))
+                total_hold += summary["avg_hold_bars"] * n
 
-                for t in result.trades:
-                    all_trades.append({
-                        "date": date_str,
-                        "ticker": ticker,
-                        "entry_price": str(t.entry_price),
-                        "exit_price": str(t.exit_price) if t.exit_price else "",
-                        "pnl_pct": str(t.pnl_pct) if t.pnl_pct else "",
-                        "hold_bars": str(t.hold_bars) if t.hold_bars else "",
-                        "exit_type": t.exit_type or "",
-                        "signal_num": str(t.signal_num) if t.signal_num else "",
-                    })
-            except (FileNotFoundError, ValueError) as e:
-                pairs_skipped_other += 1
-                errors.append(f"{ticker}/{date_str}: {e}")
-            except Exception as e:
-                pairs_skipped_other += 1
-                logger.exception("Backtest error for %s/%s", ticker, date_str)
-                errors.append(f"{ticker}/{date_str}: {e}")
+            for t in result.trades:
+                all_trades.append({
+                    "date": date_str,
+                    "ticker": ticker,
+                    "entry_price": str(t.entry_price),
+                    "exit_price": str(t.exit_price) if t.exit_price else "",
+                    "pnl_pct": str(t.pnl_pct) if t.pnl_pct else "",
+                    "hold_bars": str(t.hold_bars) if t.hold_bars else "",
+                    "exit_type": t.exit_type or "",
+                    "signal_num": str(t.signal_num) if t.signal_num else "",
+                })
+        except (FileNotFoundError, ValueError) as e:
+            pairs_skipped_other += 1
+            errors.append(f"{ticker}/{date_str}: {e}")
+        except Exception as e:
+            pairs_skipped_other += 1
+            logger.exception("Backtest error for %s/%s", ticker, date_str)
+            errors.append(f"{ticker}/{date_str}: {e}")
 
     if total_closed == 0 and errors:
         return {
