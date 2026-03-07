@@ -52,7 +52,8 @@ Executes backtests against cached market data. Use it when the session requires 
 ```json
 {"indicator": "ema_gap", "operator": "crosses_above", "value": "3.0", "params": {"fast": 3, "slow": 9}}
 ```
-Available operators: `crosses_above`, `crosses_below`, `greater_than`, `less_than`
+Available operators: `crosses_above`, `crosses_below`, `greater_than`, `less_than`, `>`, `<`, `>=`, `<=`
+Note: `greater_than` is an alias for `>`, `less_than` is an alias for `<`. Both forms work.
 
 Available indicators: `ema`, `sma`, `rsi`, `macd_histogram`, `bb_upper`, `bb_lower`, `bb_width`, `kc_width`, `squeeze_on`, `squeeze_momentum`, `vwap_session`, `vwap_distance`, `atr`, `ema_gap`, `ema_gap_acceleration`, `volume_ratio`, `volume_ratio_ema`, `price_change_pct`, `spread_ratio`, `force_index_2`, `force_index_13`, `kama`, `ib_high`, `ib_low`, `ib_range`
 

@@ -9,19 +9,26 @@ Standard universe filter for all momentum strategy backtesting. Enabled via `mom
 - **Purpose:** Filters to tickers that demonstrated genuine momentum on a given day. Reduces noise from 5,000+ cached tickers to only those with real intraday moves.
 - **Always use for momentum strategies** (vol_filter, grinder, etc.). Only omit for non-momentum research.
 - **Result fields:** `pairs_evaluated`, `pairs_skipped_momentum`, `pairs_skipped_other` — always report these in experiment results.
+- **Yield rate baseline (LC-2025-003):** 5,755 / 103,554 pairs pass (5.6%), 94.4% skip rate across full cache. Avg 31.4 evaluated pairs/date.
 
 ## Engine knowledge
 
 - Current indicator set: 25 registered (ema_gap, vwap_session, volume_ratio_ema, atr, bb_width, kc_width, squeeze_on, squeeze_momentum, force_index, kama, etc.)
 - Known engine limitations: mid-candle ordering (backtest uses bar close, live uses real-time updates)
-- `greater_than` and `less_than` operators: implemented by Workshop (2026-03-07). Previously blocked, now available for static threshold comparisons.
+- `greater_than` / `less_than` operators: functional — aliases for `>` / `<`. Both forms accepted. Also available: `>=`, `<=`, `crosses_above`, `crosses_below`.
 - Prototype scripts available: batch_historical.py, walk.py (shared walk logic)
+
+## Cache scale (LC-2025-003 — confirmed 2026-03-07)
+
+- **103,554 ticker-date pairs attempted** across 183 dates (2025-05-29 → 2026-03-04)
+- **5,755 pairs pass momentum filter** (≥50% intraday range), avg 31.4/date
+- **14 pairs skipped other** (minimal, no data quality concern)
+- Distribution: well spread across all 183 dates — no clustering
 
 ## Experiment patterns
 
 - Common failure modes: tight AND filters produce too few trades for statistical significance
 - Data quality issues observed: VWAP noisy on sub-$1 stocks (bid-ask 1-5%), single blocks shift VWAP 0.5-2%
-- Cache state: 5,088 tickers across 200 trading days (2025-05-29 to 2026-03-04), 211k bar files
 
 ## Exit Rule Design Principle (LC-2025-002 Audit)
 
