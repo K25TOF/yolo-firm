@@ -65,8 +65,8 @@ def _load_cached_bars(ticker: str, date_str: str, yolo_repo: Path) -> list:
     if not cache_path.exists():
         raise FileNotFoundError(
             f"Cache miss: {ticker}_{date_str} not in day_sim cache. "
-            f"Available range: 2026-02-10 to 2026-03-04. "
-            f"Check ticker is in scanner universe."
+            f"Check ticker is in scanner universe and date has cached data "
+            f"in analysis/cache/day_sim/."
         )
 
     data = json.loads(cache_path.read_text(encoding="utf-8"))
