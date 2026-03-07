@@ -1,5 +1,14 @@
 # Analyst Memory
 
+## Momentum Universe Filter
+
+When interpreting backtest results, check whether `momentum_universe` was enabled:
+
+- **Definition:** Filters ticker-date pairs to only those with >= 50% intraday range: `(day_high - day_low) / day_low >= 0.50`
+- **Impact on results:** Removes low-volatility pairs that would produce no signals anyway. Win rates and PnL are comparable only across experiments using the same universe setting.
+- **Standard for momentum strategies:** All vol_filter, grinder, and momentum research should use `momentum_universe: true`. Results without it include noise from non-moving tickers.
+- **Check in results:** `pairs_skipped_momentum` shows how many pairs were filtered out. High skip counts are expected and normal.
+
 ## Strategy knowledge
 
 - Active strategy: vol_filter_ema10 v2.0.0 (82T, 46% WR, +158.9% on 49 tickers)

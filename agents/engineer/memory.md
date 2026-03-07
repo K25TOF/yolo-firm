@@ -1,5 +1,15 @@
 # Engineer Memory
 
+## Momentum Universe Filter
+
+Standard universe filter for all momentum strategy backtesting. Enabled via `momentum_universe: true` in run_backtest config.
+
+- **Threshold:** `(day_high - day_low) / day_low >= 0.50` (hardcoded 50%, not configurable)
+- **Price source:** All bars in cached 1-min file (pre-market + RTH + after-hours)
+- **Purpose:** Filters to tickers that demonstrated genuine momentum on a given day. Reduces noise from 5,000+ cached tickers to only those with real intraday moves.
+- **Always use for momentum strategies** (vol_filter, grinder, etc.). Only omit for non-momentum research.
+- **Result fields:** `pairs_evaluated`, `pairs_skipped_momentum`, `pairs_skipped_other` — always report these in experiment results.
+
 ## Engine knowledge
 
 - Current indicator set: 25 registered (ema_gap, vwap_session, volume_ratio_ema, atr, bb_width, kc_width, squeeze_on, squeeze_momentum, force_index, kama, etc.)

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 AGENTS_DIR = Path(__file__).parent
 MIN_TRADE_GATE = 50
+MOMENTUM_THRESHOLD = 0.50
 VALID_AGENTS = {"analyst", "engineer", "manager"}
 
 
@@ -70,6 +71,24 @@ def _load_cached_bars(ticker: str, date_str: str, yolo_repo: Path) -> list:
 
     data = json.loads(cache_path.read_text(encoding="utf-8"))
     return [Bar.model_validate(r) for r in data]
+
+
+def _passes_momentum_filter(bars: list) -> bool:
+    """Check if bars show >= 50% intraday price range.
+
+    Args:
+        bars: List of bar dicts with 'h' (high) and 'l' (low) keys.
+
+    Returns:
+        True if (day_high - day_low) / day_low >= 0.50.
+    """
+    if not bars:
+        return False
+    day_high = max(b["h"] for b in bars)
+    day_low = min(b["l"] for b in bars)
+    if day_low == 0:
+        return False
+    return (day_high - day_low) / day_low >= MOMENTUM_THRESHOLD
 
 
 def _run_single_backtest(
@@ -187,6 +206,7 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
 
     tickers = config["tickers"]
     dates = config["dates"]
+    momentum_universe = config.get("momentum_universe", False)
 
     all_trades: list[dict] = []
     total_pnl = Decimal("0")
@@ -194,13 +214,24 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
     total_closed = 0
     total_hold = 0
     errors: list[str] = []
+    pairs_evaluated = 0
+    pairs_skipped_momentum = 0
+    pairs_skipped_other = 0
 
     for date_str in dates:
         for ticker in tickers:
             try:
+                if momentum_universe:
+                    bars_raw = _load_cached_bars(ticker, date_str, yolo_repo)
+                    bar_dicts = [{"h": float(b.high), "l": float(b.low)} for b in bars_raw]
+                    if not _passes_momentum_filter(bar_dicts):
+                        pairs_skipped_momentum += 1
+                        continue
+
                 result, summary = _run_single_backtest(
                     ticker, date_str, strategy, yolo_repo,
                 )
+                pairs_evaluated += 1
                 n = summary["n_closed"]
                 total_closed += n
                 if n > 0:
@@ -220,8 +251,10 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
                         "signal_num": str(t.signal_num) if t.signal_num else "",
                     })
             except (FileNotFoundError, ValueError) as e:
+                pairs_skipped_other += 1
                 errors.append(f"{ticker}/{date_str}: {e}")
             except Exception as e:
+                pairs_skipped_other += 1
                 logger.exception("Backtest error for %s/%s", ticker, date_str)
                 errors.append(f"{ticker}/{date_str}: {e}")
 
@@ -261,4 +294,8 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
         "avg_hold_bars": round(avg_hold, 1),
         "summary": summary_text,
         "results_path": str(csv_path),
+        "momentum_universe_enabled": momentum_universe,
+        "pairs_evaluated": pairs_evaluated,
+        "pairs_skipped_momentum": pairs_skipped_momentum,
+        "pairs_skipped_other": pairs_skipped_other,
     }

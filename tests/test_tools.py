@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 # Add agents/ to path so we can import tools
 sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
 
-from tools import resolve_yolo_repo, run_backtest, update_memory
+from tools import _passes_momentum_filter, resolve_yolo_repo, run_backtest, update_memory
 
 
 def _make_mock_result(n_trades: int = 5, pnl: float = 0.12) -> MagicMock:
@@ -208,3 +208,162 @@ class TestUpdateMemory:
         result = update_memory("hacker", "content", agents_dir=agents_dir)
 
         assert result["ok"] is False
+
+
+# --- Helpers for momentum filter tests ---
+
+def _bar(high: float, low: float) -> dict:
+    """Create a minimal bar dict with high and low prices (for filter helper)."""
+    return {"h": high, "l": low}
+
+
+def _mock_bar_obj(high: float, low: float) -> MagicMock:
+    """Create a mock Bar object with high/low attributes (for _load_cached_bars mock)."""
+    b = MagicMock()
+    b.high = high
+    b.low = low
+    return b
+
+
+class TestMomentumFilter:
+    """Tests for _passes_momentum_filter helper."""
+
+    def test_excludes_low_range_pairs(self) -> None:
+        """Pair with <50% range is excluded."""
+        # 49% range: (1.49 - 1.0) / 1.0 = 0.49
+        bars = [_bar(1.2, 1.0), _bar(1.49, 1.1), _bar(1.3, 1.05)]
+        assert _passes_momentum_filter(bars) is False
+
+    def test_includes_high_range_pairs(self) -> None:
+        """Pair with >=50% range passes."""
+        # 100% range: (2.0 - 1.0) / 1.0 = 1.0
+        bars = [_bar(2.0, 1.0), _bar(1.5, 1.2)]
+        assert _passes_momentum_filter(bars) is True
+
+    def test_threshold_boundary_passes(self) -> None:
+        """Exactly 50.0% range passes."""
+        # (1.50 - 1.00) / 1.00 = 0.50 exactly
+        bars = [_bar(1.50, 1.00)]
+        assert _passes_momentum_filter(bars) is True
+
+    def test_threshold_boundary_fails(self) -> None:
+        """49.9% range does not pass."""
+        # (1.499 - 1.00) / 1.00 = 0.499
+        bars = [_bar(1.499, 1.00)]
+        assert _passes_momentum_filter(bars) is False
+
+    def test_zero_low_returns_false(self) -> None:
+        """Guard: day_low == 0 returns False (no division by zero)."""
+        bars = [_bar(5.0, 0.0)]
+        assert _passes_momentum_filter(bars) is False
+
+    def test_empty_bars_returns_false(self) -> None:
+        """Empty bar list returns False."""
+        assert _passes_momentum_filter([]) is False
+
+
+class TestMomentumUniverse:
+    """Integration tests for momentum_universe in run_backtest."""
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._load_cached_bars")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_momentum_filter_excludes_low_range(
+        self, mock_strat: MagicMock, mock_load: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Pair with <50% range is skipped when momentum_universe=true."""
+        # 20% range — should be filtered out
+        mock_load.return_value = [_mock_bar_obj(1.2, 1.0)] * 25
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {**VALID_CONFIG, "momentum_universe": True}
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        mock_run.assert_not_called()
+        assert result["pairs_skipped_momentum"] == 1
+        assert result["pairs_evaluated"] == 0
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._load_cached_bars")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_momentum_filter_includes_high_range(
+        self, mock_strat: MagicMock, mock_load: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Pair with >=50% range passes filter and is evaluated."""
+        # 100% range — should pass
+        mock_load.return_value = [_mock_bar_obj(2.0, 1.0)] * 25
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {**VALID_CONFIG, "momentum_universe": True}
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        mock_run.assert_called_once()
+        assert result["pairs_evaluated"] == 1
+        assert result["pairs_skipped_momentum"] == 0
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_momentum_filter_disabled_by_default(
+        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """momentum_universe=false processes all pairs as before."""
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+
+        result = run_backtest(VALID_CONFIG, yolo_repo=tmp_path)
+
+        mock_run.assert_called_once()
+        assert result["momentum_universe_enabled"] is False
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._load_cached_bars")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_momentum_filter_uses_full_extended_day(
+        self, mock_strat: MagicMock, mock_load: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Filter uses all bars (pre-market + RTH + after-hours), not RTH only.
+
+        Pre-market bar has the low, after-hours bar has the high.
+        Combined range >= 50%, but no single bar spans that range.
+        """
+        bars = [
+            _mock_bar_obj(1.1, 1.0),   # pre-market: low of day
+            _mock_bar_obj(1.3, 1.2),   # RTH: mid range
+            _mock_bar_obj(1.55, 1.4),  # after-hours: high of day
+        ]
+        # range = (1.55 - 1.0) / 1.0 = 0.55 >= 0.50
+        mock_load.return_value = bars
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {**VALID_CONFIG, "momentum_universe": True}
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        mock_run.assert_called_once()
+        assert result["pairs_evaluated"] == 1
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._load_cached_bars")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_results_include_momentum_skip_count(
+        self, mock_strat: MagicMock, mock_load: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Return dict contains all momentum-related fields."""
+        mock_load.return_value = [_mock_bar_obj(1.1, 1.0)] * 25  # <50% range
+        config = {
+            **VALID_CONFIG,
+            "tickers": ["MOBX", "NPT"],
+            "dates": ["2026-03-03"],
+            "momentum_universe": True,
+        }
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        assert "momentum_universe_enabled" in result
+        assert result["momentum_universe_enabled"] is True
+        assert "pairs_evaluated" in result
+        assert "pairs_skipped_momentum" in result
+        assert result["pairs_skipped_momentum"] == 2
+        assert "pairs_skipped_other" in result
