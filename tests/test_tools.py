@@ -7,7 +7,14 @@ from unittest.mock import MagicMock, patch
 # Add agents/ to path so we can import tools
 sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
 
-from tools import _passes_momentum_filter, resolve_yolo_repo, run_backtest, update_memory
+from tools import (
+    _compute_distribution_metrics,
+    _discover_pairs_from_cache,
+    _passes_momentum_filter,
+    resolve_yolo_repo,
+    run_backtest,
+    update_memory,
+)
 
 
 def _make_mock_result(n_trades: int = 5, pnl: float = 0.12) -> MagicMock:
@@ -367,3 +374,313 @@ class TestMomentumUniverse:
         assert "pairs_skipped_momentum" in result
         assert result["pairs_skipped_momentum"] == 2
         assert "pairs_skipped_other" in result
+
+
+class TestDiscoverPairsFromCache:
+    """Tests for _discover_pairs_from_cache — tickers='all' support."""
+
+    def test_discovers_ticker_date_pairs(self, tmp_path: Path) -> None:
+        """Finds all ticker-date pairs from cache filenames."""
+        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
+        (cache_dir / "NPT_2026-03-03_1min.json").write_text("[]")
+        (cache_dir / "MOBX_2026-03-04_1min.json").write_text("[]")
+
+        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03", "2026-03-04"])
+
+        assert ("MOBX", "2026-03-03") in pairs
+        assert ("NPT", "2026-03-03") in pairs
+        assert ("MOBX", "2026-03-04") in pairs
+        assert len(pairs) == 3
+
+    def test_filters_by_dates(self, tmp_path: Path) -> None:
+        """Only returns pairs for requested dates."""
+        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
+        (cache_dir / "MOBX_2026-03-04_1min.json").write_text("[]")
+
+        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03"])
+
+        assert len(pairs) == 1
+        assert ("MOBX", "2026-03-03") in pairs
+
+    def test_empty_cache_returns_empty(self, tmp_path: Path) -> None:
+        """Returns empty list if no matching files."""
+        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
+        cache_dir.mkdir(parents=True)
+
+        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03"])
+
+        assert pairs == []
+
+    def test_ignores_non_1min_files(self, tmp_path: Path) -> None:
+        """Only matches _1min.json files."""
+        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
+        (cache_dir / "MOBX_2026-03-03_5min.json").write_text("[]")
+
+        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03"])
+
+        assert len(pairs) == 1
+
+
+class TestTickersAll:
+    """Integration tests for tickers='all' in run_backtest."""
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_tickers_all_uses_cache_discovery(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """tickers='all' discovers pairs from cache instead of explicit list."""
+        mock_discover.return_value = [("MOBX", "2026-03-03"), ("NPT", "2026-03-03")]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {
+            **VALID_CONFIG,
+            "tickers": "all",
+            "dates": ["2026-03-03"],
+        }
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        mock_discover.assert_called_once()
+        assert mock_run.call_count == 2
+        assert result["pairs_evaluated"] == 2
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_tickers_all_as_list_element(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """tickers=["all"] (list) also triggers cache discovery."""
+        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {
+            **VALID_CONFIG,
+            "tickers": ["all"],
+            "dates": ["2026-03-03"],
+        }
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        mock_discover.assert_called_once()
+        assert result["pairs_evaluated"] == 1
+
+
+class TestDistributionMetrics:
+    """Tests for _compute_distribution_metrics helper."""
+
+    def test_normal_case(self) -> None:
+        """Mixed winners and losers produce correct metrics."""
+        trades = [
+            {"pnl_pct": "5.0"},
+            {"pnl_pct": "10.0"},
+            {"pnl_pct": "-3.0"},
+            {"pnl_pct": "-7.0"},
+            {"pnl_pct": "2.0"},
+        ]
+        m = _compute_distribution_metrics(trades)
+
+        assert m["avg_winner_pct"] == round((5.0 + 10.0 + 2.0) / 3, 4)
+        assert m["avg_loser_pct"] == round((-3.0 + -7.0) / 2, 4)
+        assert m["median_pnl_pct"] == 2.0
+        assert m["max_single_trade_pnl_pct"] == 10.0
+        assert m["top10_pnl_contribution_pct"] == 100.0  # only 5 trades
+
+    def test_zero_trades(self) -> None:
+        """Empty trade list returns all None."""
+        m = _compute_distribution_metrics([])
+
+        assert m["avg_winner_pct"] is None
+        assert m["avg_loser_pct"] is None
+        assert m["median_pnl_pct"] is None
+        assert m["max_single_trade_pnl_pct"] is None
+        assert m["top10_pnl_contribution_pct"] is None
+
+    def test_single_trade(self) -> None:
+        """Single trade returns itself as all metrics."""
+        m = _compute_distribution_metrics([{"pnl_pct": "3.5"}])
+
+        assert m["avg_winner_pct"] == 3.5
+        assert m["avg_loser_pct"] == 0.0
+        assert m["median_pnl_pct"] == 3.5
+        assert m["max_single_trade_pnl_pct"] == 3.5
+        assert m["top10_pnl_contribution_pct"] == 100.0
+
+    def test_all_winners(self) -> None:
+        """All positive trades — avg_loser_pct is 0.0."""
+        trades = [{"pnl_pct": "2.0"}, {"pnl_pct": "4.0"}, {"pnl_pct": "6.0"}]
+        m = _compute_distribution_metrics(trades)
+
+        assert m["avg_winner_pct"] == 4.0
+        assert m["avg_loser_pct"] == 0.0
+        assert m["max_single_trade_pnl_pct"] == 6.0
+
+    def test_all_losers(self) -> None:
+        """All negative trades — avg_winner_pct is 0.0."""
+        trades = [{"pnl_pct": "-1.0"}, {"pnl_pct": "-3.0"}, {"pnl_pct": "-5.0"}]
+        m = _compute_distribution_metrics(trades)
+
+        assert m["avg_winner_pct"] == 0.0
+        assert m["avg_loser_pct"] == -3.0
+        assert m["max_single_trade_pnl_pct"] == -1.0
+
+    def test_top10_contribution_with_many_trades(self) -> None:
+        """Top 10 contribution < 100% when there are more than 10 trades."""
+        # 10 small trades + 1 big trade
+        trades = [{"pnl_pct": "1.0"} for _ in range(10)]
+        trades.append({"pnl_pct": "90.0"})
+        m = _compute_distribution_metrics(trades)
+
+        # total abs = 10 * 1.0 + 90.0 = 100.0
+        # top 10 abs = 90.0 + 9 * 1.0 = 99.0
+        assert m["top10_pnl_contribution_pct"] == 99.0
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_distribution_in_run_backtest_output(
+        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """run_backtest return dict includes all distribution fields."""
+        mock_run.return_value = (
+            _make_mock_result(5), _make_summary(5, 0.60, 0.12),
+        )
+
+        result = run_backtest(VALID_CONFIG, yolo_repo=tmp_path)
+
+        assert "avg_winner_pct" in result
+        assert "avg_loser_pct" in result
+        assert "median_pnl_pct" in result
+        assert "max_single_trade_pnl_pct" in result
+        assert "top10_pnl_contribution_pct" in result
+
+    def test_trades_with_empty_pnl_skipped(self) -> None:
+        """Trades with empty pnl_pct are ignored."""
+        trades = [{"pnl_pct": "5.0"}, {"pnl_pct": ""}, {"pnl_pct": "3.0"}]
+        m = _compute_distribution_metrics(trades)
+
+        assert m["avg_winner_pct"] == 4.0
+        assert m["median_pnl_pct"] == 4.0
+
+
+class TestDatesAll:
+    """Tests for dates='all' support in run_backtest."""
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_dates_all_string(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """dates='all' discovers all dates from cache."""
+        mock_discover.return_value = [("MOBX", "2026-03-03"), ("MOBX", "2026-03-04")]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {**VALID_CONFIG, "dates": "all"}
+
+        result = run_backtest(config, yolo_repo=tmp_path)
+
+        mock_discover.assert_called_once_with(tmp_path, dates=None)
+        assert result["pairs_evaluated"] == 2
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_dates_empty_list(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """dates=[] discovers all dates from cache."""
+        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {**VALID_CONFIG, "dates": []}
+
+        run_backtest(config, yolo_repo=tmp_path)
+
+        mock_discover.assert_called_once_with(tmp_path, dates=None)
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_dates_none(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """dates=None discovers all dates from cache."""
+        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {k: v for k, v in VALID_CONFIG.items() if k != "dates"}
+
+        run_backtest(config, yolo_repo=tmp_path)
+
+        mock_discover.assert_called_once_with(tmp_path, dates=None)
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_dates_list_with_all(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """dates=['all'] discovers all dates from cache."""
+        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {**VALID_CONFIG, "dates": ["all"]}
+
+        run_backtest(config, yolo_repo=tmp_path)
+
+        mock_discover.assert_called_once_with(tmp_path, dates=None)
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_explicit_dates_unchanged(
+        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Explicit date list still works as before (regression)."""
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+
+        result = run_backtest(VALID_CONFIG, yolo_repo=tmp_path)
+
+        mock_run.assert_called_once()
+        assert result["pairs_evaluated"] == 1
+
+    @patch("tools._run_single_backtest")
+    @patch("tools._discover_pairs_from_cache")
+    @patch("tools._build_strategy", return_value=MagicMock())
+    def test_dates_all_with_explicit_tickers_filters(
+        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """dates='all' + explicit tickers only runs those tickers."""
+        mock_discover.return_value = [
+            ("AAPL", "2026-03-03"), ("MOBX", "2026-03-03"), ("NPT", "2026-03-03"),
+        ]
+        mock_run.return_value = (_make_mock_result(5), _make_summary(5))
+        config = {**VALID_CONFIG, "tickers": ["MOBX"], "dates": "all"}
+
+        run_backtest(config, yolo_repo=tmp_path)
+
+        # Should only evaluate MOBX, not AAPL or NPT
+        assert mock_run.call_count == 1
+
+    def test_discover_pairs_no_date_filter(self, tmp_path: Path) -> None:
+        """_discover_pairs_from_cache with dates=None returns all pairs."""
+        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
+        (cache_dir / "MOBX_2026-03-04_1min.json").write_text("[]")
+        (cache_dir / "NPT_2026-03-05_1min.json").write_text("[]")
+
+        pairs = _discover_pairs_from_cache(tmp_path, dates=None)
+
+        assert len(pairs) == 3
+        assert ("MOBX", "2026-03-03") in pairs
+        assert ("MOBX", "2026-03-04") in pairs
+        assert ("NPT", "2026-03-05") in pairs

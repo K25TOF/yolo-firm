@@ -190,8 +190,9 @@ def get_engineer_tools() -> list[dict]:
             "name": "run_backtest",
             "description": (
                 "Execute a backtest using cached market data. Returns trade count, "
-                "win rate, PnL, and whether results are statistically conclusive "
-                "(>= 50 trades). Results are written to a CSV file."
+                "win rate, PnL, distribution metrics (avg winner/loser, median, "
+                "max single trade, top-10 contribution), and whether results are "
+                "statistically conclusive (>= 50 trades). Results written to CSV."
             ),
             "input_schema": {
                 "type": "object",
@@ -208,7 +209,10 @@ def get_engineer_tools() -> list[dict]:
                     "dates": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of dates in YYYY-MM-DD format to backtest.",
+                        "description": (
+                            "List of dates in YYYY-MM-DD format, or ['all'] to use "
+                            "all cached dates. Omit or pass [] for all dates."
+                        ),
                     },
                     "entry_rules": {
                         "type": "array",
@@ -263,7 +267,7 @@ def get_engineer_tools() -> list[dict]:
                         "description": "Force close all positions at end of day (default: true).",
                     },
                 },
-                "required": ["strategy_id", "tickers", "dates", "entry_rules", "exit_rules"],
+                "required": ["strategy_id", "tickers", "entry_rules", "exit_rules"],
             },
         },
     ]
