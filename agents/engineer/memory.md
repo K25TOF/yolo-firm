@@ -4,13 +4,14 @@
 
 - Current indicator set: 25 registered (ema_gap, vwap_session, volume_ratio_ema, atr, bb_width, kc_width, squeeze_on, squeeze_momentum, force_index, kama, etc.)
 - Known engine limitations: mid-candle ordering (backtest uses bar close, live uses real-time updates)
+- `greater_than` and `less_than` operators: implemented by Workshop (2026-03-07). Previously blocked, now available for static threshold comparisons.
 - Prototype scripts available: batch_historical.py, walk.py (shared walk logic)
 
 ## Experiment patterns
 
 - Common failure modes: tight AND filters produce too few trades for statistical significance
 - Data quality issues observed: VWAP noisy on sub-$1 stocks (bid-ask 1-5%), single blocks shift VWAP 0.5-2%
-- Cache state: 49 tickers cached for Feb 10–Mar 4 period
+- Cache state: ~5,000 tickers across 180 trading days (2025-05-29 to 2026-03-04), ~98k bar files
 
 ## Grinder Strategy Backtest Plan (HYP-025)
 
