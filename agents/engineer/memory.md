@@ -18,7 +18,7 @@
 - ema_gap (registered)
 - vwap_session (registered)
 - atr (registered)
-- ema_gap_acceleration (NEW — 3-bar ROC, 15-min registration effort)
+- ema_gap_acceleration (registered — 3-bar ROC of ema_gap, params: fast/slow/lookback)
 
 **Phase 1 scope (PO-approved):**
 - Entry: ema_gap 1.0% + VWAP 2% + acceleration < 1%
