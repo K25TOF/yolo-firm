@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 AGENTS_DIR = Path(__file__).parent
 MIN_TRADE_GATE = 50
+VALID_AGENTS = {"analyst", "engineer", "manager"}
 
 
 def resolve_yolo_repo() -> Path:
@@ -106,6 +107,41 @@ def _write_trades_csv(all_trades: list[dict], results_dir: Path, strategy_id: st
             writer.writerow({k: str(t.get(k, "")) for k in fieldnames})
 
     return path
+
+
+def update_memory(
+    agent: str,
+    content: str,
+    agents_dir: Path | None = None,
+    calling_agent: str | None = None,
+) -> dict:
+    """Write content to an agent's memory file.
+
+    Args:
+        agent: Target agent name (analyst, engineer, manager).
+        content: Full markdown content to write to memory.md.
+        agents_dir: Override agents directory (for testing).
+        calling_agent: Identity of the agent making the call (for enforcement).
+
+    Returns:
+        Dict with ok=True/False and path or error message.
+    """
+    if agent not in VALID_AGENTS:
+        return {"ok": False, "error": f"Invalid agent: {agent}. Must be one of {sorted(VALID_AGENTS)}"}
+
+    if calling_agent is not None and calling_agent != agent:
+        return {"ok": False, "error": f"Identity mismatch: {calling_agent} cannot write {agent}'s memory"}
+
+    base = agents_dir if agents_dir is not None else AGENTS_DIR
+    memory_path = base / agent / "memory.md"
+
+    try:
+        memory_path.write_text(content, encoding="utf-8")
+    except OSError as e:
+        logger.exception("Failed to write memory for %s", agent)
+        return {"ok": False, "error": f"Write failed: {e}"}
+
+    return {"ok": True, "path": str(memory_path)}
 
 
 def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:

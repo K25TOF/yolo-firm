@@ -1,4 +1,4 @@
-"""Unit tests for agents/tools.py — backtest execution tool."""
+"""Unit tests for agents/tools.py — backtest execution and memory tools."""
 
 import sys
 from pathlib import Path
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 # Add agents/ to path so we can import tools
 sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
 
-from tools import resolve_yolo_repo, run_backtest
+from tools import resolve_yolo_repo, run_backtest, update_memory
 
 
 def _make_mock_result(n_trades: int = 5, pnl: float = 0.12) -> MagicMock:
@@ -174,3 +174,37 @@ class TestResolveYoloRepo:
         with patch.dict("os.environ", {}, clear=True):
             result = resolve_yolo_repo()
             assert result.name == "yolo"
+
+
+class TestUpdateMemory:
+    """Tests for update_memory tool."""
+
+    def test_writes_file(self, tmp_path: Path) -> None:
+        agents_dir = tmp_path / "agents"
+        (agents_dir / "analyst").mkdir(parents=True)
+
+        result = update_memory("analyst", "# New memory\n- fact 1", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+        written = (agents_dir / "analyst" / "memory.md").read_text()
+        assert "# New memory" in written
+        assert "fact 1" in written
+
+    def test_agent_identity_enforced(self, tmp_path: Path) -> None:
+        agents_dir = tmp_path / "agents"
+        (agents_dir / "analyst").mkdir(parents=True)
+
+        result = update_memory(
+            "analyst", "content", agents_dir=agents_dir, calling_agent="manager",
+        )
+
+        assert result["ok"] is False
+        assert "mismatch" in result["error"].lower()
+
+    def test_error_on_invalid_agent(self, tmp_path: Path) -> None:
+        agents_dir = tmp_path / "agents"
+        agents_dir.mkdir(parents=True)
+
+        result = update_memory("hacker", "content", agents_dir=agents_dir)
+
+        assert result["ok"] is False

@@ -24,15 +24,17 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+import re
+
 from invoke import (
     build_prompt,
     extract_memory_update,
-    get_engineer_tools,
+    get_agent_tools,
     load_context,
     parse_context_manifest,
     write_session_log,
 )
-from tools import run_backtest
+from tools import run_backtest, update_memory
 
 DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS_PER_TURN = 4096
@@ -46,6 +48,21 @@ AGENTS_DIR = Path(__file__).parent
 FIRM_REPO = AGENTS_DIR.parent
 YOLO_REPO = FIRM_REPO.parent / "yolo"
 INTERRUPT_FLAG = AGENTS_DIR / "session-interrupt.flag"
+
+VALID_AGENTS = {"analyst", "engineer", "manager"}
+_NEXT_RE = re.compile(r"\[NEXT:\s*(\w+)\s*\]", re.IGNORECASE)
+
+
+def _parse_next_agent(text: str) -> str | None:
+    """Extract routing tag [NEXT: agent] from Manager response.
+
+    Returns lowercase agent name if valid, None otherwise.
+    """
+    match = _NEXT_RE.search(text)
+    if not match:
+        return None
+    agent = match.group(1).lower()
+    return agent if agent in VALID_AGENTS else None
 
 
 @dataclass
@@ -156,9 +173,24 @@ def build_transcript(turns: list[TurnResult]) -> str:
 
 TOOL_DISPATCH = {
     "run_backtest": run_backtest,
+    "update_memory": update_memory,
 }
 
 MAX_TOOL_ROUNDS = 5
+
+
+def _dispatch_tool(name: str, tool_input: dict, calling_agent: str) -> dict:
+    """Dispatch a tool call to the appropriate handler."""
+    fn = TOOL_DISPATCH.get(name)
+    if not fn:
+        return {"error": f"Unknown tool: {name}"}
+    if name == "update_memory":
+        return fn(
+            agent=tool_input["agent"],
+            content=tool_input["content"],
+            calling_agent=calling_agent,
+        )
+    return fn(tool_input)
 
 
 def invoke_agent(
@@ -211,12 +243,9 @@ def invoke_agent(
         tool_results = []
         for block in api_response.content:
             if block.type == "tool_use":
-                fn = TOOL_DISPATCH.get(block.name)
-                if fn:
-                    print(f"  [tool] {block.name}({block.input.get('strategy_id', '?')})")
-                    result = fn(block.input)
-                else:
-                    result = {"error": f"Unknown tool: {block.name}"}
+                tool_label = block.input.get("strategy_id", block.name)
+                print(f"  [tool] {block.name}({tool_label})")
+                result = _dispatch_tool(block.name, block.input, agent)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
@@ -476,10 +505,12 @@ def run_session(
     model: str,
     session_id: str,
     dry_run: bool,
+    max_turns: int = 50,
 ) -> None:
-    """Run a full multi-agent research session.
+    """Run a dynamic multi-agent research session.
 
-    Flow: Manager OPEN → Analyst → Engineer → Manager CLOSE.
+    Manager controls routing via [NEXT: agent] and [SESSION_COMPLETE] tags.
+    Non-manager turns always return to Manager.
     """
     global _tracker, _log_path  # noqa: PLW0603
 
@@ -496,7 +527,7 @@ def run_session(
     # --- DRY RUN MODE ---
     if dry_run:
         print(f"=== DRY RUN: session {session_id} ===")
-        for agent_name in ("manager", "analyst", "engineer", "manager"):
+        for agent_name in ("manager", "analyst", "engineer"):
             prompt, docs, missing, memory = load_agent_context(
                 agent_name, agents_dir, firm_repo, yolo_repo,
             )
@@ -511,6 +542,7 @@ def run_session(
         else:
             print("\n  Mode: open (Manager decides topic)")
         print(f"  Model: {model}")
+        print(f"  Max turns: {max_turns}")
         print("=== END DRY RUN ===")
         return
 
@@ -526,73 +558,35 @@ def run_session(
             print("[session] Connected to WebSocket server")
         print("Chat UI → http://localhost:8003")
 
-    def _invoke(agent, message, prompt, docs, mem, transcript=""):
-        """Invoke agent — streaming if WS connected, blocking otherwise.
+    # Agent context cache — avoids reloading on every turn
+    _ctx_cache: dict[str, tuple] = {}
 
-        Engineer agent always uses blocking path (tool use requires it).
-        """
-        tools = get_engineer_tools() if agent == "engineer" else None
+    def _get_context(agent_name: str) -> tuple:
+        if agent_name not in _ctx_cache:
+            _ctx_cache[agent_name] = load_agent_context(
+                agent_name, agents_dir, firm_repo, yolo_repo,
+            )
+        return _ctx_cache[agent_name]
+
+    def _invoke(agent_name: str, message: str, transcript: str = "") -> TurnResult:
+        """Invoke agent — streaming if WS connected, blocking if tools present."""
+        prompt, docs, mem_text, memory = _get_context(agent_name)
+        tools = get_agent_tools(agent_name)
 
         if tools:
-            # Tool use requires blocking API — no streaming
             return invoke_agent(
-                client, agent, message, prompt, docs, mem, model,
+                client, agent_name, message, prompt, docs, memory, model,
                 transcript=transcript, tools=tools,
             )
         if ws_conn:
             return invoke_agent_streaming(
-                client, agent, message, prompt, docs, mem, model,
+                client, agent_name, message, prompt, docs, memory, model,
                 transcript=transcript, ws_conn=ws_conn,
             )
         return invoke_agent(
-            client, agent, message, prompt, docs, mem, model,
+            client, agent_name, message, prompt, docs, memory, model,
             transcript=transcript,
         )
-
-    print(f"=== SESSION {session_id} ===")
-    print(f"Model: {model}")
-    if question:
-        print(f"Question: {question}")
-    else:
-        print("Mode: open (Manager decides topic)")
-    print("=" * 40)
-
-    send_to_ws(ws_conn, {
-        "type": "system", "speaker": "system",
-        "content": f"Session {session_id} started",
-    })
-
-    # --- TURN 1: MANAGER OPEN ---
-    mgr_prompt, mgr_docs, mgr_missing, mgr_memory = load_agent_context(
-        "manager", agents_dir, firm_repo, yolo_repo,
-    )
-    context_files = [d["path"] for d in mgr_docs]
-
-    if open_mode:
-        open_message = (
-            "Based on your context, memory, and the current ideas log, "
-            "what question should this session investigate? "
-            "State the question clearly, then open the session per protocol."
-        )
-    else:
-        open_message = (
-            f"PO has triggered a research session.\n\n"
-            f"Question: {question}\n\n"
-            f"Open the session per protocol. Define scope, time-box, "
-            f"and which agents are needed."
-        )
-
-    turn = _invoke("manager", open_message, mgr_prompt, mgr_docs, mgr_memory)
-    tracker.turns.append(turn)
-    _log_path = write_session_log(
-        log_dir, session_id, "manager", model,
-        context_files, mgr_missing, open_message, turn.response,
-    )
-    print_turn(turn, tracker, "OPEN")
-    if turn.memory_update:
-        memory_updates.append(("manager", turn.memory_update))
-
-    cancelled = False
 
     def _handle_interrupt() -> bool:
         """Check interrupt flag. Handle pause (block) or cancel (return True)."""
@@ -622,109 +616,121 @@ def run_session(
             print("[session] Resumed")
         return False
 
-    if _handle_interrupt():
-        cancelled = True
+    print(f"=== SESSION {session_id} ===")
+    print(f"Model: {model}")
+    if question:
+        print(f"Question: {question}")
+    else:
+        print("Mode: open (Manager decides topic)")
+    print(f"Max turns: {max_turns}")
+    print("=" * 40)
 
-    # --- TURN 2: ANALYST ---
-    if not cancelled:
-        ana_prompt, ana_docs, ana_missing, ana_memory = load_agent_context(
-            "analyst", agents_dir, firm_repo, yolo_repo,
+    send_to_ws(ws_conn, {
+        "type": "system", "speaker": "system",
+        "content": f"Session {session_id} started",
+    })
+
+    # Build opening message
+    if open_mode:
+        open_message = (
+            "Based on your context, memory, and the current ideas log, "
+            "what question should this session investigate? "
+            "State the question clearly, then open the session per protocol."
         )
-        transcript = build_transcript(tracker.turns)
-        analyst_message = (
-            "Manager has opened a research session and addressed you.\n\n"
-            "Analyst, your turn. Respond to the Manager's question per protocol."
+    else:
+        open_message = (
+            f"PO has triggered a research session.\n\n"
+            f"Question: {question}\n\n"
+            f"Open the session per protocol. Define scope, "
+            f"and which agents are needed."
         )
 
-        turn = _invoke(
-            "analyst", analyst_message,
-            ana_prompt, ana_docs, ana_memory, transcript,
-        )
-        tracker.turns.append(turn)
-        write_session_log(
-            log_dir, session_id, "analyst", model,
-            [d["path"] for d in ana_docs], ana_missing,
-            analyst_message, turn.response,
-        )
-        print_turn(turn, tracker)
-        if turn.memory_update:
-            memory_updates.append(("analyst", turn.memory_update))
+    # --- DYNAMIC SESSION LOOP ---
+    current_agent = "manager"
+    current_message = open_message
+    cancelled = False
 
+    for turn_num in range(max_turns):
+        # Check interrupt before each turn
         if _handle_interrupt():
             cancelled = True
+            break
 
-    # --- TURN 3: ENGINEER ---
-    if not cancelled:
-        eng_prompt, eng_docs, eng_missing, eng_memory = load_agent_context(
-            "engineer", agents_dir, firm_repo, yolo_repo,
-        )
-        transcript = build_transcript(tracker.turns)
-        engineer_message = (
-            "Manager has opened a research session. "
-            "Here is the transcript so far.\n\n"
-            "Engineer, your turn. Respond per protocol."
-        )
+        # Warn when approaching turn limit
+        remaining = max_turns - turn_num
+        if remaining == 5:
+            print(f"[session] WARNING: {remaining} turns remaining before force close")
 
-        turn = _invoke(
-            "engineer", engineer_message,
-            eng_prompt, eng_docs, eng_memory, transcript,
-        )
+        # Build transcript for context
+        transcript = build_transcript(tracker.turns) if turn_num > 0 else ""
+
+        # Invoke agent
+        label = "OPEN" if turn_num == 0 else ""
+        turn = _invoke(current_agent, current_message, transcript)
         tracker.turns.append(turn)
-        write_session_log(
-            log_dir, session_id, "engineer", model,
-            [d["path"] for d in eng_docs], eng_missing,
-            engineer_message, turn.response,
+
+        # Write session log
+        ctx = _get_context(current_agent)
+        ctx_files = [d["path"] for d in ctx[1]]
+        ctx_missing = ctx[2]
+        _log_path = write_session_log(
+            log_dir, session_id, current_agent, model,
+            ctx_files, ctx_missing, current_message, turn.response,
         )
-        # Engineer uses blocking path even with WS — send completed response
-        if ws_conn:
+
+        # Send to WS if agent used blocking path (tools present)
+        if ws_conn and get_agent_tools(current_agent):
             send_to_ws(ws_conn, {
-                "type": "message", "speaker": "engineer",
+                "type": "message", "speaker": current_agent,
                 "content": turn.response,
             })
-        print_turn(turn, tracker)
+
+        print_turn(turn, tracker, label)
+
         if turn.memory_update:
-            memory_updates.append(("engineer", turn.memory_update))
+            memory_updates.append((current_agent, turn.memory_update))
 
-        if _handle_interrupt():
-            cancelled = True
+        # --- ROUTING LOGIC ---
+        if current_agent == "manager":
+            # Check for session complete
+            if "[SESSION_COMPLETE]" in turn.response:
+                # Write review doc on final manager turn
+                reviews_dir = agents_dir / "reviews"
+                write_review_doc(
+                    reviews_dir=reviews_dir,
+                    session_id=session_id,
+                    model=model,
+                    manager_close_response=turn.response,
+                    log_path=_log_path,
+                )
+                break
 
-    # --- TURN 4: MANAGER CLOSE ---
-    if not cancelled:
-        transcript = build_transcript(tracker.turns)
-        close_message = (
-            "All agents have responded. Here is the full session transcript.\n\n"
-            "Run the session close routine per protocol: "
-            "summarise findings, note memory updates, write session minutes."
-        )
+            # Check for routing tag
+            next_tag = _NEXT_RE.search(turn.response)
+            if next_tag is None:
+                # No routing tag and no SESSION_COMPLETE → session complete
+                break
 
-        turn = _invoke(
-            "manager", close_message,
-            mgr_prompt, mgr_docs, mgr_memory, transcript,
-        )
-        tracker.turns.append(turn)
-        write_session_log(
-            log_dir, session_id, "manager", model,
-            context_files, mgr_missing, close_message, turn.response,
-        )
-        print_turn(turn, tracker, "CLOSE")
-        if turn.memory_update:
-            memory_updates.append(("manager", turn.memory_update))
-
-        # Write PO review document
-        reviews_dir = agents_dir / "reviews"
-        review_path = write_review_doc(
-            reviews_dir=reviews_dir,
-            session_id=session_id,
-            model=model,
-            manager_close_response=turn.response,
-            log_path=_log_path,
-        )
-        print(f"\nReview doc: {review_path}")
+            next_agent = _parse_next_agent(turn.response)
+            # Invalid agent name defaults to manager
+            current_agent = next_agent if next_agent else "manager"
+            current_message = (
+                f"Session transcript so far.\n\n"
+                f"{current_agent.title()}, your turn. Respond per protocol."
+            )
+        else:
+            # Non-manager turns always return to Manager
+            current_agent = "manager"
+            current_message = (
+                "Here is the updated session transcript.\n\n"
+                "Continue the session per protocol."
+            )
 
     # --- SUMMARY ---
     print(f"\n{tracker.summary()}")
     print(f"\nSession ID: {session_id}")
     print(f"Log: {_log_path}")
+    print(f"Turns: {len(tracker.turns)}")
 
     if memory_updates:
         pending_path = agents_dir / "memory-pending.md"
@@ -782,6 +788,10 @@ def main() -> None:
         "--dry-run", action="store_true",
         help="Build prompts without calling API",
     )
+    parser.add_argument(
+        "--max-turns", type=int, default=50,
+        help="Maximum turns before force close (default: 50)",
+    )
 
     args = parser.parse_args()
 
@@ -795,6 +805,7 @@ def main() -> None:
         model=args.model,
         session_id=session_id,
         dry_run=args.dry_run,
+        max_turns=args.max_turns,
     )
 
 

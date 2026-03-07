@@ -126,7 +126,7 @@ Manager must escalate to PO when:
 
 - Agents reach an impasse (conflicting recommendations, no resolution)
 - A proposed change affects production strategy, code, or capital
-- Token budget is at risk of being exceeded without clear outcome
+- Session is approaching turn limit without clear outcome
 - An agent requests access to gated resources (deep book reading, new data sources)
 - Any safety or compliance concern is raised
 - Memory updates are proposed (PO approval required)
@@ -148,7 +148,7 @@ Manager closes a session early when:
 
 - The question has been answered — no reason to continue
 - Agents are going in circles — same points being repeated
-- Token budget is being burned without progress
+- Turns are being consumed without progress
 - An impasse requires PO intervention
 - Scope creep is detected — agents drifting from the defined question
 

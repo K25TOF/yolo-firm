@@ -269,6 +269,45 @@ def get_engineer_tools() -> list[dict]:
     ]
 
 
+def _update_memory_tool_def() -> dict:
+    """Return Anthropic tool definition for the update_memory tool."""
+    return {
+        "name": "update_memory",
+        "description": (
+            "Write content to your persistent memory file (memory.md). "
+            "Replaces the entire file. Use this to save important findings, "
+            "experiment results, or insights for future sessions."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "agent": {
+                    "type": "string",
+                    "enum": ["analyst", "engineer", "manager"],
+                    "description": "Your agent name (must match your identity).",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Full markdown content for memory.md.",
+                },
+            },
+            "required": ["agent", "content"],
+        },
+    }
+
+
+def get_agent_tools(agent_name: str) -> list[dict]:
+    """Return tool definitions for a given agent.
+
+    Engineer gets: run_backtest + update_memory.
+    Analyst and Manager get: update_memory only.
+    """
+    memory_tool = _update_memory_tool_def()
+    if agent_name == "engineer":
+        return get_engineer_tools() + [memory_tool]
+    return [memory_tool]
+
+
 def main() -> None:
     """CLI entry point for single-agent invocation."""
     parser = argparse.ArgumentParser(description="Invoke a single YOLO Org Learning agent.")
