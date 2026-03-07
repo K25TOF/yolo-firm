@@ -19,6 +19,7 @@ from session import (
     is_server_running,
     load_agent_context,
     run_session,
+    write_review_doc,
 )
 
 
@@ -399,3 +400,99 @@ class TestCheckInterrupt:
         flag.write_text("  pause  \n")
         with patch("session.INTERRUPT_FLAG", flag):
             assert check_interrupt() == "pause"
+
+
+class TestWriteReviewDoc:
+    """Tests for PO review document generation."""
+
+    def test_review_doc_created_after_session(self, tmp_path: Path) -> None:
+        """Review file is created in the reviews directory."""
+        reviews_dir = tmp_path / "reviews"
+        log_path = tmp_path / "session-log" / "2026-03-06-test-session.md"
+        log_path.parent.mkdir(parents=True)
+        log_path.write_text("# Session: test-session\n")
+
+        result = write_review_doc(
+            reviews_dir=reviews_dir,
+            session_id="test-session",
+            model="claude-haiku-4-5-20251001",
+            manager_close_response="## Synthesis\nKey findings here.",
+            log_path=log_path,
+        )
+
+        assert result.exists()
+        assert result.parent == reviews_dir
+
+    def test_review_doc_filename_format(self, tmp_path: Path) -> None:
+        """Review filename follows YYYY-MM-DD-{session-id}-review.md pattern."""
+        reviews_dir = tmp_path / "reviews"
+        log_path = tmp_path / "log.md"
+        log_path.write_text("# Log\n")
+
+        result = write_review_doc(
+            reviews_dir=reviews_dir,
+            session_id="vwap-audit",
+            model="claude-haiku-4-5-20251001",
+            manager_close_response="Synthesis.",
+            log_path=log_path,
+        )
+
+        assert re.match(r"\d{4}-\d{2}-\d{2}-vwap-audit-review\.md", result.name)
+
+    def test_review_doc_contains_manager_close_response(self, tmp_path: Path) -> None:
+        """Review doc includes the Manager synthesis text."""
+        reviews_dir = tmp_path / "reviews"
+        log_path = tmp_path / "log.md"
+        log_path.write_text("# Log\n")
+
+        synthesis = "## Key Findings\n\n1. RSI works well\n2. VWAP needs tuning"
+        result = write_review_doc(
+            reviews_dir=reviews_dir,
+            session_id="test-123",
+            model="claude-haiku-4-5-20251001",
+            manager_close_response=synthesis,
+            log_path=log_path,
+        )
+
+        content = result.read_text()
+        assert "RSI works well" in content
+        assert "VWAP needs tuning" in content
+        assert "test-123" in content
+
+    def test_review_doc_creates_directory_if_missing(self, tmp_path: Path) -> None:
+        """Reviews directory is auto-created if it doesn't exist."""
+        reviews_dir = tmp_path / "nonexistent" / "reviews"
+        log_path = tmp_path / "log.md"
+        log_path.write_text("# Log\n")
+
+        assert not reviews_dir.exists()
+
+        result = write_review_doc(
+            reviews_dir=reviews_dir,
+            session_id="dir-test",
+            model="claude-haiku-4-5-20251001",
+            manager_close_response="Synthesis.",
+            log_path=log_path,
+        )
+
+        assert reviews_dir.exists()
+        assert result.exists()
+
+    def test_review_link_appended_to_session_log(self, tmp_path: Path) -> None:
+        """Review file path is appended to the session log."""
+        reviews_dir = tmp_path / "reviews"
+        log_path = tmp_path / "session-log" / "2026-03-06-link-test.md"
+        log_path.parent.mkdir(parents=True)
+        log_path.write_text("# Session: link-test\n\nSome content.\n")
+
+        result = write_review_doc(
+            reviews_dir=reviews_dir,
+            session_id="link-test",
+            model="claude-haiku-4-5-20251001",
+            manager_close_response="Synthesis.",
+            log_path=log_path,
+        )
+
+        log_content = log_path.read_text()
+        assert result.name in log_content
+        assert "Review:" in log_content

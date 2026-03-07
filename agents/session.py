@@ -330,6 +330,45 @@ def connect_ws(port: int = 8003) -> object | None:
         return None
 
 
+def write_review_doc(
+    reviews_dir: Path,
+    session_id: str,
+    model: str,
+    manager_close_response: str,
+    log_path: Path,
+) -> Path:
+    """Write a PO review document from the Manager CLOSE synthesis.
+
+    Creates the reviews directory if needed. Appends a link to the session log.
+    Returns the path to the review file.
+    """
+    reviews_dir.mkdir(parents=True, exist_ok=True)
+
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    filename = f"{today}-{session_id}-review.md"
+    review_path = reviews_dir / filename
+
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    log_name = log_path.name if log_path else "unknown"
+
+    content = (
+        f"# Session Review: {session_id}\n"
+        f"_Date: {now} | Model: {model}_\n\n"
+        f"## Manager Synthesis\n\n"
+        f"{manager_close_response}\n\n"
+        f"---\n"
+        f"_Session log: session-log/{log_name}_\n"
+    )
+    review_path.write_text(content)
+
+    # Append link to session log
+    if log_path and log_path.exists():
+        with open(log_path, "a") as f:
+            f.write(f"\nReview: reviews/{filename}\n")
+
+    return review_path
+
+
 def check_interrupt() -> str | None:
     """Check for pause/cancel interrupt flag.
 
@@ -591,6 +630,17 @@ def run_session(
         print_turn(turn, tracker, "CLOSE")
         if turn.memory_update:
             memory_updates.append(("manager", turn.memory_update))
+
+        # Write PO review document
+        reviews_dir = agents_dir / "reviews"
+        review_path = write_review_doc(
+            reviews_dir=reviews_dir,
+            session_id=session_id,
+            model=model,
+            manager_close_response=turn.response,
+            log_path=_log_path,
+        )
+        print(f"\nReview doc: {review_path}")
 
     # --- SUMMARY ---
     print(f"\n{tracker.summary()}")

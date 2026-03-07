@@ -5,6 +5,10 @@ __pycache__/
 agents/session-log/*.md
 !agents/session-log/README.md
 
+# Review documents (operational, not versioned)
+agents/reviews/*.md
+!agents/reviews/README.md
+
 # Pending memory updates (require PO approval)
 agents/memory-pending.md
 
