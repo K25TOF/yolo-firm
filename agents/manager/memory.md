@@ -15,12 +15,12 @@ Items below LC-2025-007 were bulk-approved by PO (2026-03-07 audit handoff). Age
 - LC-2025-005: Scope request — add RVOL threshold as universe filter parameter to backtester (alongside momentum_universe). Required to re-validate EXP-023 on correct universe.
 - LC-2025-006: Add IDEA-019 to ideas.md — ATR isolation test on broad momentum universe
 - LC-2025-006: Update strategy-roadmap.md Research State section — ranked leads for next phase
-- Engine story: Expose trade distribution metrics in `run_backtest` output (median PnL, avg winner/loser, top-N trades). Recurring blocker — Analyst cannot interrogate trade logs without this.
-- Engine story: Fix `dates="all"` resolution for `_discover_pairs_from_cache`. Blocked LC-2025-011; requires explicit date list as workaround.
+- ~~Engine story: Expose trade distribution metrics~~ — DONE (Story 5.12). run_backtest now returns avg_winner_pct, avg_loser_pct, median_pnl_pct, max_single_trade_pnl_pct, top10_pnl_contribution_pct.
+- ~~Engine story: Fix dates="all" resolution~~ — DONE (Story 5.13). dates="all", ["all"], [], or omit all work.
 
 ## Session history (last 5)
 
-- LC-2025-011 (RVOL threshold): volume_ratio_ema threshold 2.0→5.0 on broad universe. +3.51pp WR at 5.0x but all thresholds net negative. Stable +0.035pp WR per 1% trade reduction. RVOL is a working knob but cannot fix core edge. First attempt blocked by dates="all" issue — required retry with explicit date list.
+- LC-2025-011 (RVOL threshold): volume_ratio_ema threshold 2.0→5.0 on broad universe. +3.51pp WR at 5.0x but all thresholds net negative. Stable +0.035pp WR per 1% trade reduction. RVOL is a working knob but cannot fix core edge. First attempt blocked by dates="all" issue (now fixed in Story 5.13).
 - LC-2025-010 (IDEA-018 test): AND-subset (gap >4% AND vol >5x) = 316 trades, 29.10% WR, +1.12pp above baseline — not a loser archetype. IDEA-018 FAIL — retired. Source findings (EXP-012, EXP-021) confirmed as hand-picked artefacts.
 - LC-2025-009 (ATR isolation): ATR exit on broad universe — +1.63pp WR, +1,186.9pp PnL vs EMA-only. PASS (marginal). Directionally consistent with EXP-016 but smaller magnitude. Does not fix core edge problem.
 - LC-2025-008 (gap accel filter): ema_gap_acceleration < 1.0 on vol_filter — 98.6% trade reduction (6,347→88), WR -4.0pp. Filter structurally incompatible with 3.0% entry. FAIL. Belongs in grinder context only (IDEA-021).

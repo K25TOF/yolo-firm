@@ -67,7 +67,7 @@ Standard universe filter for all momentum strategy backtesting. Enabled via `mom
 - Higher threshold = fewer trades + higher WR (stable +0.035pp WR per 1% trade reduction)
 - Divergent set (2.0-only trades): 28.80% WR — below baseline, concentrated losers
 - All thresholds remain deeply net negative — RVOL is a working knob but insufficient to fix core edge problem
-- **dates='all' not supported by _discover_pairs_from_cache** — must pass explicit date list
+- **dates='all' now supported** — pass `dates: "all"`, `["all"]`, `[]`, or omit to use all cached dates
 
 ## IDEA-018 — Combined Overextended Entry Filter (LC-2025-010 — FAIL)
 
