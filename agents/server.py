@@ -192,6 +192,8 @@ async def serve(port: int) -> None:
         "127.0.0.1",
         port,
         process_request=process_request,
+        ping_interval=60,    # Ping every 60s (API calls can take 30-60s)
+        ping_timeout=120,    # Allow 120s without pong (covers long API waits)
     ):
         print(f"[server] Listening on ws://127.0.0.1:{port}")
         print(f"[server] PID {os.getpid()} written to {PID_FILE}")
