@@ -17,3 +17,9 @@ Documents loaded into Engineer context at session start.
 |---|---|---|
 | Research Log | `analysis/research/research-log.md` | Experiment history (EXP-NNN) |
 | Strategies | `analysis/research/strategies.json` | Active and retired strategy definitions |
+
+## Agent Memory (yolo-firm/agents/engineer/)
+
+| Document | Path | Purpose |
+|---|---|---|
+| Agent Memory | `agents/engineer/memory.md` | Persistent knowledge from prior sessions |

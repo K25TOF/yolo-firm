@@ -26,3 +26,9 @@ Documents loaded into Manager context at session start.
 | Document | Path | Purpose |
 |---|---|---|
 | Agents README | `agents/README.md` | Session protocol and agent boundaries |
+
+## Agent Memory (yolo-firm/agents/manager/)
+
+| Document | Path | Purpose |
+|---|---|---|
+| Agent Memory | `agents/manager/memory.md` | Persistent knowledge from prior sessions |

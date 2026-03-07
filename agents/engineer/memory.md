@@ -34,3 +34,15 @@
 - Sample size: tight 3-part filter may produce <50 trades across dataset
 - VWAP evidence is thin; phased approach mitigates
 - Mid-candle gap acceleration in live entry (Phase 4 refinement, not blocking Phase 1)
+
+**Backtest validation requirements (LC-2025-003):**
+- min_stabilization_bars must be >= 20 (EMA 3/9 needs ~20 bars; bars 10–19 produce noisy gap_accel)
+- Deliver results split by date subset: Feb 10–23 (out-of-sample) vs Feb 24–Mar 3 (design subset)
+- Deliver results split by price bucket: sub-$1 / $1–5 / $5+
+- Include per-trade gap_accel at entry for post-hoc threshold validation
+
+## Lesson: Threshold Selection From Outcome Buckets Is High-Risk
+
+EXP-021 bucketed outcomes by indicator ranges, then selected thresholds (gap_accel < 1.0%) that separated winners from losers. This is reverse-engineering from data — the threshold fits in-sample perfectly but may be meaningless on new data.
+
+**Validation:** After backtest, compute indicator distributions on out-of-sample subset (Feb 10–23) and check if threshold still separates outcome groups. See LC-2025-003 Risk #1.

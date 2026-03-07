@@ -31,6 +31,19 @@
 
 **Next:** Phase 1 backtest to validate core entry. Phase 2 (volume refinement) conditional.
 
+## Lesson: Rule Design Must Be Segregated From Rule Validation
+
+HYP-025 entry rules were designed using EXP-021 data (Feb 24–Mar 3). Using the same date range as validation (Feb 10–Mar 4) includes the design subset, inflating confidence.
+
+**Pattern:** If rule threshold X was chosen because it separated outcomes on dates D1, then dates D1 cannot be part of the validation dataset. Always report design-subset vs held-out-subset results separately. Flag if WR delta > 10pp. See LC-2025-003 Risk #1.
+
+**HYP-025 audit gate (LC-2025-003):**
+- Feb 10–23 WR must be >= 35% (true out-of-sample)
+- Sub-$1 WR must be >= 35% (validates VWAP rule isn't slippage artifact)
+- Gap_accel distribution on Feb 10–23 must show separation at 1.0% threshold
+- Top 3 trades must not concentrate in Feb 24–Mar 3 (design subset)
+- No single trade > +15% (outlier dependency check)
+
 ## Book knowledge (key extracts)
 
 - (populated over sessions)

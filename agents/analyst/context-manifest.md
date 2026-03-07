@@ -20,3 +20,9 @@ Documents loaded into Analyst context at session start.
 | Research Log | `analysis/research/research-log.md` | Experiment history (EXP-NNN) |
 | Ideas Log | `analysis/research/ideas.md` | Improvement ideas (IDEA-NNN) |
 | Strategies | `analysis/research/strategies.json` | Active and retired strategy definitions |
+
+## Agent Memory (yolo-firm/agents/analyst/)
+
+| Document | Path | Purpose |
+|---|---|---|
+| Agent Memory | `agents/analyst/memory.md` | Persistent knowledge from prior sessions |
