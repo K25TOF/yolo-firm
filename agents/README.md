@@ -34,10 +34,9 @@ No agent can approve changes, deploy code, or modify production systems. Every o
 
 - Approve strategy changes, code changes, or capital decisions
 - Modify production engine or deploy code
-- Update their own persistent memory without PO approval
+- Write to another agent's memory (identity enforcement)
 - Self-audit (Analyst cannot audit results from own hypotheses)
 - Operate without PO triggering the cycle
-- Exceed token budget for a cycle
 - Communicate directly with each other — Manager mediates all interaction
 
 ---
@@ -52,7 +51,7 @@ PO triggers a learning cycle with a question or objective. No agent operates wit
 
 Manager defines:
 - The question being investigated
-- Time-box and token budget
+- Time-box and turn limit
 - Which agents are needed
 - Expected outcome format
 
@@ -98,27 +97,24 @@ Context manifests use file paths relative to their source repo root for programm
 
 Each agent has persistent memory that accumulates over sessions.
 
-### Update flow
+### Auto-Memory (update_memory tool)
 
-1. Agent flags a memory update candidate during session close
-2. Manager queues the update in session minutes
-3. PO reviews and approves or rejects
-4. Approved updates are written to the agent's memory file
+Agents can write to their own memory file directly using the `update_memory` tool during sessions. Identity is enforced — an agent can only write to its own memory file.
 
 ### Rules
 
-- Agents cannot update their own memory without PO approval
+- Each agent can only write to its own `memory.md` via `update_memory`
 - Memory is concise — bullet points, not paragraphs
-- Stale or redundant entries are proposed for removal during session close
+- The tool replaces the entire file — agents must include all existing content they want to keep
 - Memory files are reviewed after every PRD release
 
 ### Memory files
 
 | Agent | File |
 |---|---|
-| Manager | `agents/manager/memory-template.md` |
-| Analyst | `agents/analyst/memory-template.md` |
-| Engineer | `agents/engineer/memory-template.md` |
+| Manager | `agents/manager/memory.md` |
+| Analyst | `agents/analyst/memory.md` |
+| Engineer | `agents/engineer/memory.md` |
 
 ---
 

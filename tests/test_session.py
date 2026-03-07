@@ -222,12 +222,16 @@ class TestRunSession:
 
     @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
-    def test_question_mode_runs_four_turns(
+    def test_question_mode_routes_dynamically(
         self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
     ) -> None:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
-        mock_client.messages.create.return_value = self._mock_api_response("Response.")
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response("Opening. [NEXT: analyst]"),
+            self._mock_api_response("Analysis done."),
+            self._mock_api_response("Closing. [SESSION_COMPLETE]"),
+        ]
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
@@ -240,7 +244,7 @@ class TestRunSession:
                 dry_run=False,
             )
 
-        assert mock_client.messages.create.call_count == 4
+        assert mock_client.messages.create.call_count == 3
 
     @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
@@ -249,7 +253,9 @@ class TestRunSession:
     ) -> None:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
-        mock_client.messages.create.return_value = self._mock_api_response("Response.")
+        mock_client.messages.create.return_value = self._mock_api_response(
+            "Response. [SESSION_COMPLETE]",
+        )
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
@@ -275,10 +281,9 @@ class TestRunSession:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
         mock_client.messages.create.side_effect = [
-            self._mock_api_response("Manager opens."),
+            self._mock_api_response("Manager opens. [NEXT: analyst]"),
             self._mock_api_response("Analyst responds."),
-            self._mock_api_response("Engineer responds."),
-            self._mock_api_response("Manager closes."),
+            self._mock_api_response("Manager closes. [SESSION_COMPLETE]"),
         ]
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
@@ -297,7 +302,6 @@ class TestRunSession:
         content = log_files[0].read_text()
         assert "Manager opens." in content
         assert "Analyst responds." in content
-        assert "Engineer responds." in content
         assert "Manager closes." in content
 
     def test_dry_run_skips_api_calls(self, session_env: dict) -> None:
@@ -321,12 +325,11 @@ class TestRunSession:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
         mock_client.messages.create.side_effect = [
-            self._mock_api_response("Manager opens."),
+            self._mock_api_response("Manager opens. [NEXT: analyst]"),
             self._mock_api_response(
                 "Analysis.\n\n[MEMORY UPDATE]\n- New finding: X\n",
             ),
-            self._mock_api_response("Engineer responds."),
-            self._mock_api_response("Manager closes."),
+            self._mock_api_response("Manager closes. [SESSION_COMPLETE]"),
         ]
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
@@ -614,3 +617,186 @@ class TestInvokeAgentToolUse:
         # Verify no 'tools' key in the API call
         call_kwargs = mock_client.messages.create.call_args
         assert "tools" not in (call_kwargs.kwargs or {})
+
+
+class TestParseNextAgent:
+    """Tests for _parse_next_agent tag extraction."""
+
+    def test_extracts_analyst(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("Some text [NEXT: analyst] more text") == "analyst"
+
+    def test_extracts_engineer(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("Result [NEXT: engineer]") == "engineer"
+
+    def test_extracts_manager(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("[NEXT: manager]") == "manager"
+
+    def test_case_insensitive(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("[NEXT: Analyst]") == "analyst"
+        assert _parse_next_agent("[NEXT: ENGINEER]") == "engineer"
+
+    def test_strips_whitespace(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("[NEXT:  analyst  ]") == "analyst"
+
+    def test_returns_none_when_no_tag(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("No routing tag here.") is None
+
+    def test_invalid_agent_returns_none(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("[NEXT: hacker]") is None
+
+
+class TestDynamicSession:
+    """Tests for dynamic routing session loop."""
+
+    @pytest.fixture
+    def session_env(self, tmp_path: Path) -> dict:
+        """Create a full agent tree for session tests."""
+        agents = tmp_path / "agents"
+        agents.mkdir()
+        log_dir = agents / "session-log"
+        log_dir.mkdir()
+
+        for agent in ("manager", "analyst", "engineer"):
+            d = agents / agent
+            d.mkdir()
+            (d / "system-prompt.md").write_text(f"You are {agent.title()}.")
+            (d / "context-manifest.md").write_text(
+                f"# {agent.title()} — Context Manifest\n\n"
+                "## Firm Documents (yolo-firm/)\n\n"
+                "| Document | Path | Purpose |\n"
+                "|---|---|---|\n"
+                "| RACI | `raci.md` | Roles |\n",
+            )
+
+        (tmp_path / "raci.md").write_text("# RACI\nRoles.")
+        (tmp_path / "yolo").mkdir()
+
+        return {
+            "agents_dir": agents,
+            "firm_repo": tmp_path,
+            "yolo_repo": tmp_path / "yolo",
+            "log_dir": log_dir,
+        }
+
+    def _mock_api_response(self, text: str, input_tokens: int = 100, output_tokens: int = 50):
+        """Create a mock Anthropic API response."""
+        mock = MagicMock()
+        text_block = MagicMock()
+        text_block.type = "text"
+        text_block.text = text
+        mock.content = [text_block]
+        mock.stop_reason = "end_turn"
+        mock.usage = MagicMock(input_tokens=input_tokens, output_tokens=output_tokens)
+        return mock
+
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_session_closes_on_tag(
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        # Manager opens then immediately closes
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response("Session opened. [SESSION_COMPLETE]"),
+        ]
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="close-test", dry_run=False,
+            )
+
+        assert mock_client.messages.create.call_count == 1
+
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_session_routes_on_next_tag(
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response("Opening. [NEXT: analyst]"),
+            self._mock_api_response("Analysis done."),  # analyst turn routes back to manager
+            self._mock_api_response("Closing. [SESSION_COMPLETE]"),
+        ]
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="route-test", dry_run=False,
+            )
+
+        assert mock_client.messages.create.call_count == 3
+
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_session_force_closes_at_turn_limit(
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        # Manager keeps routing to analyst forever
+        mock_client.messages.create.return_value = self._mock_api_response(
+            "Continuing. [NEXT: analyst]",
+        )
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="limit-test", dry_run=False,
+                max_turns=5,
+            )
+
+        assert mock_client.messages.create.call_count == 5
+
+    @patch("session.ensure_server_running", return_value=False)
+    @patch("session.create_client")
+    def test_invalid_next_agent_defaults_to_manager(
+        self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_create.return_value = mock_client
+        mock_client.messages.create.side_effect = [
+            self._mock_api_response("Opening. [NEXT: hacker]"),  # invalid → manager
+            self._mock_api_response("Closing. [SESSION_COMPLETE]"),
+        ]
+
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="default-test", dry_run=False,
+            )
+
+        # Second call should be manager (default fallback)
+        assert mock_client.messages.create.call_count == 2
+
+    def test_dry_run_still_works(self, session_env: dict) -> None:
+        with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
+             patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.YOLO_REPO", session_env["yolo_repo"]):
+            run_session(
+                question="Test", open_mode=False,
+                model="claude-haiku-4-5-20251001",
+                session_id="dry-test-2", dry_run=True,
+            )
