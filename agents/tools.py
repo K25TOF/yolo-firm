@@ -2,6 +2,9 @@
 
 Provides run_backtest() — executes backtests using the yolo backtesting engine
 against cached market data. Cache-only mode: no live Polygon API calls.
+
+Data access is delegated to analysis.datastore.DataStore — no hardcoded paths
+leak into this module.
 """
 
 from __future__ import annotations
@@ -10,7 +13,7 @@ import csv
 import logging
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -37,6 +40,13 @@ def _ensure_yolo_on_path(yolo_repo: Path) -> None:
         sys.path.insert(0, repo_str)
 
 
+def _create_datastore(yolo_repo: Path) -> object:
+    """Create a DataStore instance. Thin wrapper to allow test mocking."""
+    from analysis.datastore import DataStore
+
+    return DataStore(yolo_repo)
+
+
 def _build_strategy(config: dict) -> object:
     """Build a Strategy object from config dict."""
     from analysis.backtester.strategy import Strategy
@@ -52,57 +62,13 @@ def _build_strategy(config: dict) -> object:
         strategy_dict["atr_exit"] = config["atr_exit"]
     if config.get("volume_decay_exit"):
         strategy_dict["volume_decay_exit"] = config["volume_decay_exit"]
+    if config.get("news_trigger"):
+        strategy_dict["news_trigger"] = config["news_trigger"]
+    if config.get("use_news"):
+        strategy_dict["use_news"] = True
 
     return Strategy.from_dict(strategy_dict)
 
-
-def _load_cached_bars(ticker: str, date_str: str, yolo_repo: Path) -> list:
-    """Load 1-min bars from day_sim cache. Raises FileNotFoundError if missing."""
-    import json
-
-    from src.models.polygon import Bar
-
-    cache_path = yolo_repo / "analysis" / "cache" / "day_sim" / f"{ticker}_{date_str}_1min.json"
-    if not cache_path.exists():
-        raise FileNotFoundError(
-            f"Cache miss: {ticker}_{date_str} not found. "
-            f"Check date is within available cached range."
-        )
-
-    data = json.loads(cache_path.read_text(encoding="utf-8"))
-    return [Bar.model_validate(r) for r in data]
-
-
-def _discover_pairs_from_cache(
-    yolo_repo: Path, dates: list[str] | None = None,
-) -> list[tuple[str, str]]:
-    """Scan day_sim cache for all ticker-date pairs matching requested dates.
-
-    Args:
-        yolo_repo: Path to yolo repository root.
-        dates: List of dates to filter by, or None to include all dates.
-
-    Returns:
-        List of (ticker, date) tuples found in cache.
-    """
-    cache_dir = yolo_repo / "analysis" / "cache" / "day_sim"
-    if not cache_dir.is_dir():
-        return []
-
-    date_set = set(dates) if dates else None
-    pairs: list[tuple[str, str]] = []
-    for f in cache_dir.iterdir():
-        if not f.name.endswith("_1min.json"):
-            continue
-        # Format: {TICKER}_{YYYY-MM-DD}_1min.json
-        parts = f.stem.rsplit("_", 2)  # [ticker, date, "1min"]
-        if len(parts) != 3:
-            continue
-        ticker, date_str = parts[0], parts[1]
-        if date_set is None or date_str in date_set:
-            pairs.append((ticker, date_str))
-
-    return sorted(pairs)
 
 
 def _passes_momentum_filter(bars: list) -> bool:
@@ -123,18 +89,38 @@ def _passes_momentum_filter(bars: list) -> bool:
     return (day_high - day_low) / day_low >= MOMENTUM_THRESHOLD
 
 
+def _load_news_for_backtest(ticker: str, date_str: str, ds: object) -> list:
+    """Load news articles for a ticker covering the backtest date + 1-day lookback."""
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+    date_from = (dt - timedelta(days=1)).strftime("%Y-%m-%d")
+    # Combine articles from both dates, deduplicate by benzinga_id
+    seen: set[int] = set()
+    articles: list = []
+    for d in (date_from, date_str):
+        for a in ds.get_news(ticker, d):
+            if a.benzinga_id not in seen:
+                seen.add(a.benzinga_id)
+                articles.append(a)
+    articles.sort(key=lambda a: a.published_ms)
+    return articles
+
+
 def _run_single_backtest(
-    ticker: str, date_str: str, strategy: object, yolo_repo: Path,
+    ticker: str, date_str: str, strategy: object, ds: object,
 ) -> tuple:
     """Run backtest for one ticker/date. Returns (BacktestResult, summary_dict)."""
     from analysis.backtester import reports
     from analysis.backtester.engine import BacktestEngine
 
-    bars = _load_cached_bars(ticker, date_str, yolo_repo)
+    bars = ds.get_1min_bars(ticker, date_str)
     if len(bars) < 20:
         raise ValueError(f"Too few bars for {ticker} on {date_str}: {len(bars)}")
 
-    engine = BacktestEngine(bars, strategy, ticker=ticker, date=date_str)
+    news = None
+    if getattr(strategy, "use_news", False):
+        news = _load_news_for_backtest(ticker, date_str, ds)
+
+    engine = BacktestEngine(bars, strategy, ticker=ticker, date=date_str, news=news)
     result = engine.run()
     summary = reports.summarise(result)
     return result, summary
@@ -257,6 +243,8 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
 
     _ensure_yolo_on_path(yolo_repo)
 
+    ds = _create_datastore(yolo_repo)
+
     # Validate required fields (dates is optional — defaults to "all")
     required = ["strategy_id", "tickers", "entry_rules", "exit_rules"]
     missing = [k for k in required if k not in config]
@@ -293,14 +281,13 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
         or (isinstance(dates, list) and len(dates) == 0)
     )
 
-    # Build ticker-date pairs
+    # Build ticker-date pairs via DataStore
     if tickers == "all" or tickers == ["all"]:
-        ticker_date_pairs = _discover_pairs_from_cache(
-            yolo_repo, dates=None if all_dates else dates,
+        ticker_date_pairs = ds.list_ticker_date_pairs(
+            dates=None if all_dates else dates,
         )
     elif all_dates:
-        ticker_date_pairs = _discover_pairs_from_cache(yolo_repo, dates=None)
-        # Filter to only requested tickers
+        ticker_date_pairs = ds.list_ticker_date_pairs(dates=None)
         ticker_set = set(tickers)
         ticker_date_pairs = [(t, d) for t, d in ticker_date_pairs if t in ticker_set]
     else:
@@ -321,14 +308,14 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
     for ticker, date_str in ticker_date_pairs:
         try:
             if momentum_universe:
-                bars_raw = _load_cached_bars(ticker, date_str, yolo_repo)
+                bars_raw = ds.get_1min_bars(ticker, date_str)
                 bar_dicts = [{"h": float(b.high), "l": float(b.low)} for b in bars_raw]
                 if not _passes_momentum_filter(bar_dicts):
                     pairs_skipped_momentum += 1
                     continue
 
             result, summary = _run_single_backtest(
-                ticker, date_str, strategy, yolo_repo,
+                ticker, date_str, strategy, ds,
             )
             pairs_evaluated += 1
             n = summary["n_closed"]
@@ -366,8 +353,7 @@ def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
         }
 
     # Write CSV
-    results_dir = yolo_repo / "analysis" / "research" / "results"
-    csv_path = _write_trades_csv(all_trades, results_dir, strategy_id)
+    csv_path = _write_trades_csv(all_trades, ds.results_dir, strategy_id)
 
     trade_count = len(all_trades)
     inconclusive = trade_count < MIN_TRADE_GATE
