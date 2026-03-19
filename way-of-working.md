@@ -78,6 +78,24 @@ Full research discipline in project `CLAUDE.md`.
 
 ---
 
+## Chart Viewer Review Policy
+
+The chart viewer at `http://72.61.203.132:8050` is the human-AI collaboration
+interface for visual research review. All agents follow these rules:
+
+**Lists:** Manager creates lists in `analysis/tools/lists/` named
+`{research_id}_{description}_v{n}.json`. Multiple parallel lists are permitted.
+Never overwrite an active list — increment the version number.
+Existing lists (`trades.json`, `runners.json`) are grandfathered.
+
+**Feedback:** Manager owns and commits feedback files in
+`analysis/tools/feedback/`. Feedback is never deleted.
+
+**Traceability:** Every new list references its research task ID. Anyone can
+trace list → feedback → research task without asking.
+
+---
+
 ## Session Close Routine
 
 After every story delivery (Workshop) and every research cycle (Analyst, Engineer):
