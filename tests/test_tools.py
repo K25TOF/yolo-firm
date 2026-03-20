@@ -9,7 +9,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
 
 from tools import (
     _compute_distribution_metrics,
-    _discover_pairs_from_cache,
     _passes_momentum_filter,
     resolve_yolo_repo,
     run_backtest,
@@ -56,6 +55,16 @@ def _make_summary(n_trades: int = 5, win_rate: float = 0.45, pnl: float = 0.12) 
     }
 
 
+def _make_mock_ds(tmp_path: Path, pairs: list | None = None) -> MagicMock:
+    """Create a mock DataStore with sensible defaults."""
+    ds = MagicMock()
+    ds.list_ticker_date_pairs.return_value = pairs or []
+    ds.get_1min_bars.return_value = []
+    ds.get_news.return_value = []
+    ds.results_dir = tmp_path / "analysis" / "research" / "results"
+    return ds
+
+
 VALID_CONFIG = {
     "strategy_id": "HYP-TEST",
     "tickers": ["MOBX"],
@@ -79,9 +88,12 @@ class TestRunBacktestSchema:
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_returns_correct_schema(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.return_value = (
             _make_mock_result(60), _make_summary(60, 0.50, 0.25),
         )
@@ -98,9 +110,12 @@ class TestRunBacktestSchema:
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_inconclusive_when_under_50_trades(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.return_value = (
             _make_mock_result(10), _make_summary(10, 0.40, 0.05),
         )
@@ -112,9 +127,12 @@ class TestRunBacktestSchema:
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_not_inconclusive_when_over_50_trades(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.return_value = (
             _make_mock_result(60), _make_summary(60, 0.50, 0.25),
         )
@@ -131,9 +149,12 @@ class TestRunBacktestCSV:
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_results_csv_written(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.return_value = (
             _make_mock_result(5), _make_summary(5),
         )
@@ -149,7 +170,9 @@ class TestRunBacktestCSV:
 class TestRunBacktestErrors:
     """Tests for error handling."""
 
-    def test_bad_config_returns_error(self, tmp_path: Path) -> None:
+    @patch("tools._create_datastore")
+    def test_bad_config_returns_error(self, mock_ds_factory: MagicMock, tmp_path: Path) -> None:
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         bad_config = {"strategy_id": "test"}  # Missing required fields
 
         result = run_backtest(bad_config, yolo_repo=tmp_path)
@@ -159,9 +182,12 @@ class TestRunBacktestErrors:
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_missing_cache_returns_error_in_summary(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.side_effect = FileNotFoundError("No cached data")
 
         result = run_backtest(VALID_CONFIG, yolo_repo=tmp_path)
@@ -188,21 +214,21 @@ class TestUpdateMemory:
 
     def test_writes_file(self, tmp_path: Path) -> None:
         agents_dir = tmp_path / "agents"
-        (agents_dir / "analyst").mkdir(parents=True)
+        (agents_dir / "optimist").mkdir(parents=True)
 
-        result = update_memory("analyst", "# New memory\n- fact 1", agents_dir=agents_dir)
+        result = update_memory("optimist", "# New memory\n- fact 1", agents_dir=agents_dir)
 
         assert result["ok"] is True
-        written = (agents_dir / "analyst" / "memory.md").read_text()
+        written = (agents_dir / "optimist" / "memory.md").read_text()
         assert "# New memory" in written
         assert "fact 1" in written
 
     def test_agent_identity_enforced(self, tmp_path: Path) -> None:
         agents_dir = tmp_path / "agents"
-        (agents_dir / "analyst").mkdir(parents=True)
+        (agents_dir / "optimist").mkdir(parents=True)
 
         result = update_memory(
-            "analyst", "content", agents_dir=agents_dir, calling_agent="manager",
+            "optimist", "content", agents_dir=agents_dir, calling_agent="manager",
         )
 
         assert result["ok"] is False
@@ -225,7 +251,7 @@ def _bar(high: float, low: float) -> dict:
 
 
 def _mock_bar_obj(high: float, low: float) -> MagicMock:
-    """Create a mock Bar object with high/low attributes (for _load_cached_bars mock)."""
+    """Create a mock Bar object with high/low attributes."""
     b = MagicMock()
     b.high = high
     b.low = low
@@ -236,36 +262,26 @@ class TestMomentumFilter:
     """Tests for _passes_momentum_filter helper."""
 
     def test_excludes_low_range_pairs(self) -> None:
-        """Pair with <50% range is excluded."""
-        # 49% range: (1.49 - 1.0) / 1.0 = 0.49
         bars = [_bar(1.2, 1.0), _bar(1.49, 1.1), _bar(1.3, 1.05)]
         assert _passes_momentum_filter(bars) is False
 
     def test_includes_high_range_pairs(self) -> None:
-        """Pair with >=50% range passes."""
-        # 100% range: (2.0 - 1.0) / 1.0 = 1.0
         bars = [_bar(2.0, 1.0), _bar(1.5, 1.2)]
         assert _passes_momentum_filter(bars) is True
 
     def test_threshold_boundary_passes(self) -> None:
-        """Exactly 50.0% range passes."""
-        # (1.50 - 1.00) / 1.00 = 0.50 exactly
         bars = [_bar(1.50, 1.00)]
         assert _passes_momentum_filter(bars) is True
 
     def test_threshold_boundary_fails(self) -> None:
-        """49.9% range does not pass."""
-        # (1.499 - 1.00) / 1.00 = 0.499
         bars = [_bar(1.499, 1.00)]
         assert _passes_momentum_filter(bars) is False
 
     def test_zero_low_returns_false(self) -> None:
-        """Guard: day_low == 0 returns False (no division by zero)."""
         bars = [_bar(5.0, 0.0)]
         assert _passes_momentum_filter(bars) is False
 
     def test_empty_bars_returns_false(self) -> None:
-        """Empty bar list returns False."""
         assert _passes_momentum_filter([]) is False
 
 
@@ -273,15 +289,16 @@ class TestMomentumUniverse:
     """Integration tests for momentum_universe in run_backtest."""
 
     @patch("tools._run_single_backtest")
-    @patch("tools._load_cached_bars")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_momentum_filter_excludes_low_range(
-        self, mock_strat: MagicMock, mock_load: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         """Pair with <50% range is skipped when momentum_universe=true."""
-        # 20% range — should be filtered out
-        mock_load.return_value = [_mock_bar_obj(1.2, 1.0)] * 25
+        mock_ds = _make_mock_ds(tmp_path)
+        mock_ds.get_1min_bars.return_value = [_mock_bar_obj(1.2, 1.0)] * 25
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {**VALID_CONFIG, "momentum_universe": True}
 
@@ -292,15 +309,16 @@ class TestMomentumUniverse:
         assert result["pairs_evaluated"] == 0
 
     @patch("tools._run_single_backtest")
-    @patch("tools._load_cached_bars")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_momentum_filter_includes_high_range(
-        self, mock_strat: MagicMock, mock_load: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         """Pair with >=50% range passes filter and is evaluated."""
-        # 100% range — should pass
-        mock_load.return_value = [_mock_bar_obj(2.0, 1.0)] * 25
+        mock_ds = _make_mock_ds(tmp_path)
+        mock_ds.get_1min_bars.return_value = [_mock_bar_obj(2.0, 1.0)] * 25
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {**VALID_CONFIG, "momentum_universe": True}
 
@@ -312,10 +330,13 @@ class TestMomentumUniverse:
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_momentum_filter_disabled_by_default(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         """momentum_universe=false processes all pairs as before."""
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
 
         result = run_backtest(VALID_CONFIG, yolo_repo=tmp_path)
@@ -324,24 +345,21 @@ class TestMomentumUniverse:
         assert result["momentum_universe_enabled"] is False
 
     @patch("tools._run_single_backtest")
-    @patch("tools._load_cached_bars")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_momentum_filter_uses_full_extended_day(
-        self, mock_strat: MagicMock, mock_load: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """Filter uses all bars (pre-market + RTH + after-hours), not RTH only.
-
-        Pre-market bar has the low, after-hours bar has the high.
-        Combined range >= 50%, but no single bar spans that range.
-        """
+        """Filter uses all bars (pre-market + RTH + after-hours)."""
         bars = [
             _mock_bar_obj(1.1, 1.0),   # pre-market: low of day
             _mock_bar_obj(1.3, 1.2),   # RTH: mid range
             _mock_bar_obj(1.55, 1.4),  # after-hours: high of day
         ]
-        # range = (1.55 - 1.0) / 1.0 = 0.55 >= 0.50
-        mock_load.return_value = bars
+        mock_ds = _make_mock_ds(tmp_path)
+        mock_ds.get_1min_bars.return_value = bars
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {**VALID_CONFIG, "momentum_universe": True}
 
@@ -351,14 +369,16 @@ class TestMomentumUniverse:
         assert result["pairs_evaluated"] == 1
 
     @patch("tools._run_single_backtest")
-    @patch("tools._load_cached_bars")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_results_include_momentum_skip_count(
-        self, mock_strat: MagicMock, mock_load: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         """Return dict contains all momentum-related fields."""
-        mock_load.return_value = [_mock_bar_obj(1.1, 1.0)] * 25  # <50% range
+        mock_ds = _make_mock_ds(tmp_path)
+        mock_ds.get_1min_bars.return_value = [_mock_bar_obj(1.1, 1.0)] * 25
+        mock_ds_factory.return_value = mock_ds
         config = {
             **VALID_CONFIG,
             "tickers": ["MOBX", "NPT"],
@@ -376,101 +396,46 @@ class TestMomentumUniverse:
         assert "pairs_skipped_other" in result
 
 
-class TestDiscoverPairsFromCache:
-    """Tests for _discover_pairs_from_cache — tickers='all' support."""
-
-    def test_discovers_ticker_date_pairs(self, tmp_path: Path) -> None:
-        """Finds all ticker-date pairs from cache filenames."""
-        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
-        cache_dir.mkdir(parents=True)
-        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
-        (cache_dir / "NPT_2026-03-03_1min.json").write_text("[]")
-        (cache_dir / "MOBX_2026-03-04_1min.json").write_text("[]")
-
-        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03", "2026-03-04"])
-
-        assert ("MOBX", "2026-03-03") in pairs
-        assert ("NPT", "2026-03-03") in pairs
-        assert ("MOBX", "2026-03-04") in pairs
-        assert len(pairs) == 3
-
-    def test_filters_by_dates(self, tmp_path: Path) -> None:
-        """Only returns pairs for requested dates."""
-        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
-        cache_dir.mkdir(parents=True)
-        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
-        (cache_dir / "MOBX_2026-03-04_1min.json").write_text("[]")
-
-        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03"])
-
-        assert len(pairs) == 1
-        assert ("MOBX", "2026-03-03") in pairs
-
-    def test_empty_cache_returns_empty(self, tmp_path: Path) -> None:
-        """Returns empty list if no matching files."""
-        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
-        cache_dir.mkdir(parents=True)
-
-        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03"])
-
-        assert pairs == []
-
-    def test_ignores_non_1min_files(self, tmp_path: Path) -> None:
-        """Only matches _1min.json files."""
-        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
-        cache_dir.mkdir(parents=True)
-        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
-        (cache_dir / "MOBX_2026-03-03_5min.json").write_text("[]")
-
-        pairs = _discover_pairs_from_cache(tmp_path, dates=["2026-03-03"])
-
-        assert len(pairs) == 1
-
-
 class TestTickersAll:
     """Integration tests for tickers='all' in run_backtest."""
 
     @patch("tools._run_single_backtest")
-    @patch("tools._discover_pairs_from_cache")
     @patch("tools._build_strategy", return_value=MagicMock())
-    def test_tickers_all_uses_cache_discovery(
-        self, mock_strat: MagicMock, mock_discover: MagicMock,
+    @patch("tools._create_datastore")
+    def test_tickers_all_uses_datastore_discovery(
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """tickers='all' discovers pairs from cache instead of explicit list."""
-        mock_discover.return_value = [("MOBX", "2026-03-03"), ("NPT", "2026-03-03")]
+        """tickers='all' discovers pairs from DataStore."""
+        mock_ds = _make_mock_ds(
+            tmp_path, pairs=[("MOBX", "2026-03-03"), ("NPT", "2026-03-03")],
+        )
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
-        config = {
-            **VALID_CONFIG,
-            "tickers": "all",
-            "dates": ["2026-03-03"],
-        }
+        config = {**VALID_CONFIG, "tickers": "all", "dates": ["2026-03-03"]}
 
         result = run_backtest(config, yolo_repo=tmp_path)
 
-        mock_discover.assert_called_once()
+        mock_ds.list_ticker_date_pairs.assert_called_once()
         assert mock_run.call_count == 2
         assert result["pairs_evaluated"] == 2
 
     @patch("tools._run_single_backtest")
-    @patch("tools._discover_pairs_from_cache")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_tickers_all_as_list_element(
-        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """tickers=["all"] (list) also triggers cache discovery."""
-        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        """tickers=["all"] also triggers DataStore discovery."""
+        mock_ds = _make_mock_ds(tmp_path, pairs=[("MOBX", "2026-03-03")])
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
-        config = {
-            **VALID_CONFIG,
-            "tickers": ["all"],
-            "dates": ["2026-03-03"],
-        }
+        config = {**VALID_CONFIG, "tickers": ["all"], "dates": ["2026-03-03"]}
 
         result = run_backtest(config, yolo_repo=tmp_path)
 
-        mock_discover.assert_called_once()
+        mock_ds.list_ticker_date_pairs.assert_called_once()
         assert result["pairs_evaluated"] == 1
 
 
@@ -478,7 +443,6 @@ class TestDistributionMetrics:
     """Tests for _compute_distribution_metrics helper."""
 
     def test_normal_case(self) -> None:
-        """Mixed winners and losers produce correct metrics."""
         trades = [
             {"pnl_pct": "5.0"},
             {"pnl_pct": "10.0"},
@@ -492,10 +456,9 @@ class TestDistributionMetrics:
         assert m["avg_loser_pct"] == round((-3.0 + -7.0) / 2, 4)
         assert m["median_pnl_pct"] == 2.0
         assert m["max_single_trade_pnl_pct"] == 10.0
-        assert m["top10_pnl_contribution_pct"] == 100.0  # only 5 trades
+        assert m["top10_pnl_contribution_pct"] == 100.0
 
     def test_zero_trades(self) -> None:
-        """Empty trade list returns all None."""
         m = _compute_distribution_metrics([])
 
         assert m["avg_winner_pct"] is None
@@ -505,7 +468,6 @@ class TestDistributionMetrics:
         assert m["top10_pnl_contribution_pct"] is None
 
     def test_single_trade(self) -> None:
-        """Single trade returns itself as all metrics."""
         m = _compute_distribution_metrics([{"pnl_pct": "3.5"}])
 
         assert m["avg_winner_pct"] == 3.5
@@ -515,7 +477,6 @@ class TestDistributionMetrics:
         assert m["top10_pnl_contribution_pct"] == 100.0
 
     def test_all_winners(self) -> None:
-        """All positive trades — avg_loser_pct is 0.0."""
         trades = [{"pnl_pct": "2.0"}, {"pnl_pct": "4.0"}, {"pnl_pct": "6.0"}]
         m = _compute_distribution_metrics(trades)
 
@@ -524,7 +485,6 @@ class TestDistributionMetrics:
         assert m["max_single_trade_pnl_pct"] == 6.0
 
     def test_all_losers(self) -> None:
-        """All negative trades — avg_winner_pct is 0.0."""
         trades = [{"pnl_pct": "-1.0"}, {"pnl_pct": "-3.0"}, {"pnl_pct": "-5.0"}]
         m = _compute_distribution_metrics(trades)
 
@@ -533,22 +493,21 @@ class TestDistributionMetrics:
         assert m["max_single_trade_pnl_pct"] == -1.0
 
     def test_top10_contribution_with_many_trades(self) -> None:
-        """Top 10 contribution < 100% when there are more than 10 trades."""
-        # 10 small trades + 1 big trade
         trades = [{"pnl_pct": "1.0"} for _ in range(10)]
         trades.append({"pnl_pct": "90.0"})
         m = _compute_distribution_metrics(trades)
 
-        # total abs = 10 * 1.0 + 90.0 = 100.0
-        # top 10 abs = 90.0 + 9 * 1.0 = 99.0
         assert m["top10_pnl_contribution_pct"] == 99.0
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_distribution_in_run_backtest_output(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         """run_backtest return dict includes all distribution fields."""
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.return_value = (
             _make_mock_result(5), _make_summary(5, 0.60, 0.12),
         )
@@ -562,7 +521,6 @@ class TestDistributionMetrics:
         assert "top10_pnl_contribution_pct" in result
 
     def test_trades_with_empty_pnl_skipped(self) -> None:
-        """Trades with empty pnl_pct are ignored."""
         trades = [{"pnl_pct": "5.0"}, {"pnl_pct": ""}, {"pnl_pct": "3.0"}]
         m = _compute_distribution_metrics(trades)
 
@@ -574,76 +532,85 @@ class TestDatesAll:
     """Tests for dates='all' support in run_backtest."""
 
     @patch("tools._run_single_backtest")
-    @patch("tools._discover_pairs_from_cache")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_dates_all_string(
-        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """dates='all' discovers all dates from cache."""
-        mock_discover.return_value = [("MOBX", "2026-03-03"), ("MOBX", "2026-03-04")]
+        """dates='all' discovers all dates via DataStore."""
+        mock_ds = _make_mock_ds(
+            tmp_path, pairs=[("MOBX", "2026-03-03"), ("MOBX", "2026-03-04")],
+        )
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {**VALID_CONFIG, "dates": "all"}
 
         result = run_backtest(config, yolo_repo=tmp_path)
 
-        mock_discover.assert_called_once_with(tmp_path, dates=None)
+        mock_ds.list_ticker_date_pairs.assert_called_once_with(dates=None)
         assert result["pairs_evaluated"] == 2
 
     @patch("tools._run_single_backtest")
-    @patch("tools._discover_pairs_from_cache")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_dates_empty_list(
-        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """dates=[] discovers all dates from cache."""
-        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        """dates=[] discovers all dates via DataStore."""
+        mock_ds = _make_mock_ds(tmp_path, pairs=[("MOBX", "2026-03-03")])
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {**VALID_CONFIG, "dates": []}
 
         run_backtest(config, yolo_repo=tmp_path)
 
-        mock_discover.assert_called_once_with(tmp_path, dates=None)
+        mock_ds.list_ticker_date_pairs.assert_called_once_with(dates=None)
 
     @patch("tools._run_single_backtest")
-    @patch("tools._discover_pairs_from_cache")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_dates_none(
-        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """dates=None discovers all dates from cache."""
-        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        """dates=None discovers all dates via DataStore."""
+        mock_ds = _make_mock_ds(tmp_path, pairs=[("MOBX", "2026-03-03")])
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {k: v for k, v in VALID_CONFIG.items() if k != "dates"}
 
         run_backtest(config, yolo_repo=tmp_path)
 
-        mock_discover.assert_called_once_with(tmp_path, dates=None)
+        mock_ds.list_ticker_date_pairs.assert_called_once_with(dates=None)
 
     @patch("tools._run_single_backtest")
-    @patch("tools._discover_pairs_from_cache")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_dates_list_with_all(
-        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
-        """dates=['all'] discovers all dates from cache."""
-        mock_discover.return_value = [("MOBX", "2026-03-03")]
+        """dates=['all'] discovers all dates via DataStore."""
+        mock_ds = _make_mock_ds(tmp_path, pairs=[("MOBX", "2026-03-03")])
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {**VALID_CONFIG, "dates": ["all"]}
 
         run_backtest(config, yolo_repo=tmp_path)
 
-        mock_discover.assert_called_once_with(tmp_path, dates=None)
+        mock_ds.list_ticker_date_pairs.assert_called_once_with(dates=None)
 
     @patch("tools._run_single_backtest")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_explicit_dates_unchanged(
-        self, mock_strat: MagicMock, mock_run: MagicMock, tmp_path: Path,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
+        mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         """Explicit date list still works as before (regression)."""
+        mock_ds_factory.return_value = _make_mock_ds(tmp_path)
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
 
         result = run_backtest(VALID_CONFIG, yolo_repo=tmp_path)
@@ -652,35 +619,20 @@ class TestDatesAll:
         assert result["pairs_evaluated"] == 1
 
     @patch("tools._run_single_backtest")
-    @patch("tools._discover_pairs_from_cache")
     @patch("tools._build_strategy", return_value=MagicMock())
+    @patch("tools._create_datastore")
     def test_dates_all_with_explicit_tickers_filters(
-        self, mock_strat: MagicMock, mock_discover: MagicMock,
+        self, mock_ds_factory: MagicMock, mock_strat: MagicMock,
         mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         """dates='all' + explicit tickers only runs those tickers."""
-        mock_discover.return_value = [
+        mock_ds = _make_mock_ds(tmp_path, pairs=[
             ("AAPL", "2026-03-03"), ("MOBX", "2026-03-03"), ("NPT", "2026-03-03"),
-        ]
+        ])
+        mock_ds_factory.return_value = mock_ds
         mock_run.return_value = (_make_mock_result(5), _make_summary(5))
         config = {**VALID_CONFIG, "tickers": ["MOBX"], "dates": "all"}
 
         run_backtest(config, yolo_repo=tmp_path)
 
-        # Should only evaluate MOBX, not AAPL or NPT
         assert mock_run.call_count == 1
-
-    def test_discover_pairs_no_date_filter(self, tmp_path: Path) -> None:
-        """_discover_pairs_from_cache with dates=None returns all pairs."""
-        cache_dir = tmp_path / "analysis" / "cache" / "day_sim"
-        cache_dir.mkdir(parents=True)
-        (cache_dir / "MOBX_2026-03-03_1min.json").write_text("[]")
-        (cache_dir / "MOBX_2026-03-04_1min.json").write_text("[]")
-        (cache_dir / "NPT_2026-03-05_1min.json").write_text("[]")
-
-        pairs = _discover_pairs_from_cache(tmp_path, dates=None)
-
-        assert len(pairs) == 3
-        assert ("MOBX", "2026-03-03") in pairs
-        assert ("MOBX", "2026-03-04") in pairs
-        assert ("NPT", "2026-03-05") in pairs

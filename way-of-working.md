@@ -14,9 +14,9 @@ _Owner: Boardroom | Approved by: PO | Version: 1.0_
 | PO (Kristof) | Any | Approves all changes, gatekeeper |
 | Boardroom | Claude.ai | Strategy, stories, AC, documentation |
 | Workshop | Claude Code (VPS) | Implementation, testing, deployment |
-| Manager | Claude API (future) | Learning cycles, documentation |
-| Analyst | Claude API (future) | Strategy research, hypothesis definition |
-| Engineer | Claude API (future) | Backtesting, feasibility |
+| Manager | Claude API | Learning cycles, data execution, documentation |
+| Optimist | Claude API | Alternative angles, hypothesis refinement |
+| Challenger | Claude API | Evidence demands, bias checks, methodology audit |
 
 See `raci.md` for full responsibilities and segregation of duties.
 
@@ -61,7 +61,7 @@ Full implementation detail in `~/CLAUDE.md` (10 Commandments).
 
 All strategy experiments follow this protocol:
 
-1. **Hypothesis defined** — Analyst (or Boardroom) defines what is being tested and why
+1. **Hypothesis defined** — Optimist (or Boardroom) defines what is being tested and why
 2. **Experiment scoped** — numbered EXP-NNN, added to `research-log.md` before running
 3. **Isolation principle** — when comparing variants, examine only trades where variants diverge
 4. **Results logged** — EXP entry updated with stats, observations, decisions
@@ -78,9 +78,27 @@ Full research discipline in project `CLAUDE.md`.
 
 ---
 
+## Chart Viewer Review Policy
+
+The chart viewer at `http://72.61.203.132:8050` is the human-AI collaboration
+interface for visual research review. All agents follow these rules:
+
+**Lists:** Manager creates lists in `analysis/tools/lists/` named
+`{research_id}_{description}_v{n}.json`. Multiple parallel lists are permitted.
+Never overwrite an active list — increment the version number.
+Existing lists (`trades.json`, `runners.json`) are grandfathered.
+
+**Feedback:** Manager owns and commits feedback files in
+`analysis/tools/feedback/`. Feedback is never deleted.
+
+**Traceability:** Every new list references its research task ID. Anyone can
+trace list → feedback → research task without asking.
+
+---
+
 ## Session Close Routine
 
-After every story delivery (Workshop) and every research cycle (Analyst, Engineer):
+After every story delivery (Workshop) and every research cycle (Optimist, Challenger):
 
 1. Self-check: did this session surface anything not in persistent memory or documentation?
 2. If yes: flag to Manager with suggested update
@@ -111,7 +129,7 @@ After every story delivery (Workshop) and every research cycle (Analyst, Enginee
 
 ---
 
-## Agent Interaction Model (Phase 5+)
+## Agent Interaction Model
 
 When Org Learning agents are active:
 
@@ -119,8 +137,15 @@ When Org Learning agents are active:
 - PO triggers cycle (manual for now, scheduled/event-driven later)
 - Manager defines the question, time-boxes the cycle, owns token budget
 - Manager addresses agents individually — no cross-talk
-- Agents "raise hand" to contribute, Manager grants floor
+- Both Optimist and Challenger must be invoked in every session — non-negotiable
+- Manager is the sole executor of data tasks (backtests, data queries) — agents analyse results
+- Manager injects full data context into every routing message (agents have no memory of prior turns)
 - Manager writes concise session minutes after each cycle
+
+**Session close — autonomous:**
+- After both agents have responded, Manager synthesises findings (3-5 bullets)
+- Lists FLAG FOR CONTEXT items, asks each agent for final flags
+- Updates context files and closes — does not wait for further instructions
 
 **PO can:**
 - Observe session log in real time
@@ -130,6 +155,7 @@ When Org Learning agents are active:
 **Agents cannot:**
 - Implement changes without PO approval
 - Modify the production engine or deploy code
+- Access data or run backtests directly — Manager provides curated data packages
 - Update their own persistent memory without PO approval
 
 **Token efficiency:**
@@ -148,7 +174,7 @@ When Org Learning agents are active:
 | `projects/yolo/CLAUDE.md` | Workshop | Project-specific API or architecture changes |
 | `DECISIONS.md` | Workshop | Any architectural decision |
 | `GLOSSARY.md` | Workshop | New terms or status changes |
-| `research-log.md` | Analyst / Engineer | Every experiment |
+| `research-log.md` | Manager | Every experiment |
 | `status-log.md` | Workshop | Every significant action |
 | `changelog.md` | Workshop | Every PRD release |
 

@@ -54,7 +54,7 @@ This runs sessions back-to-back, marking tasks complete as they finish. Stops on
 - Run `python3 agents/run_agenda.py` to run autonomous research from an agenda
 - Read any file in this repo or the yolo repo (`/home/claude/projects/yolo/`)
 - Review session logs in `agents/session-log/`
-- Invoke a single agent: `python3 agents/invoke.py --agent analyst --message "..."`
+- Invoke a single agent: `python3 agents/invoke.py --agent optimist --message "..."`
 - Update `~/status-log.md` after sessions
 
 ## What You Cannot Do

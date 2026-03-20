@@ -1,6 +1,6 @@
 # Architecture
 
-_Owner: Boardroom | Approved by: PO | Version: 1.0 — sourced from Workshop snapshot_
+_Owner: Boardroom | Approved by: PO | Version: 1.1 — updated 2026-03-08 (Phase 7+8)_
 
 ---
 
@@ -119,28 +119,39 @@ Secrets: age-encrypted `.env.prd` (root-only) · `.env.dev` (claude user)
 
 ```
 analysis/
+├── datastore/              # Centralised data access (Story 8.1)
+│   └── __init__.py         # DataStore class — typed read/write for all 7 datasets
+├── refresh.py              # Daily pipeline orchestrator (Story 8.2)
 ├── backtester/
 │   ├── engine.py           # BacktestEngine class (entry/exit simulation)
 │   ├── strategy.py         # Composable rules (Rule + Strategy dataclasses)
-│   ├── indicators.py       # 24 registered indicators (per-bar + O(n) series)
-│   ├── data.py             # Polygon bar fetcher + JSON cache
+│   ├── indicators.py       # 25 registered indicators (per-bar + O(n) series)
+│   ├── data.py             # Polygon bar fetcher + JSON cache + NewsArticle model
 │   ├── reports.py          # Missed opportunities, summary stats
-│   ├── walk.py             # Deprecated — kept for scratch script compat
 │   └── batch_historical.py # Batch backtest across dates/tickers
+├── day_simulator.py        # Historical day reconstruction (grouped + 1min bars)
+├── signal_bars.py          # Enriched 1-min bars → signal_bars.parquet (1.7 GB)
+├── rvol_baseline.py        # Per-ticker RVOL baseline → rvol_baseline.parquet
+├── ticker_metadata.py      # Float, sector, exchange → ticker_metadata.parquet
 ├── research/
-│   ├── research-log.md     # EXP-001 to EXP-023
+│   ├── eod_labeler.py      # EOD % change buckets → eod_performance_labels.parquet
+│   ├── research-log.md     # EXP-001 to EXP-026
 │   ├── strategies.json     # Strategy registry (active/retired)
 │   └── ideas.md            # IDEA-NNN improvement proposals
-├── cache/                  # Polygon bar cache ({ticker}_{date}_{tf}.json)
-├── results/                # Backtest CSV output
-└── scratch_exp*.py         # Experiment scripts
+├── cache/                  # Polygon bar/news cache
+├── scripts/
+│   └── fetch_news.py       # Historical Benzinga news fetcher
+└── logs/                   # Refresh pipeline logs
 ```
 
-**Registered indicators (24):**
+**Registered indicators (25):**
 ema, sma, rsi, macd_histogram, bb_upper, bb_lower, vwap_session, atr, ema_gap,
 volume_ratio, volume_ratio_ema, vwap_distance, price_change_pct, spread_ratio,
 bb_width, kc_width, squeeze_on, squeeze_momentum, force_index_2, force_index_13,
-kama, ib_high, ib_low, ib_range
+kama, ib_high, ib_low, ib_range, ema_gap_acceleration
+
+**Daily refresh pipeline (cron 02:30 ET Tue–Sat):**
+grouped daily → Stage 1 + 1min bars → news + ticker metadata → rvol baseline + eod labels → signal bars
 
 ---
 
@@ -155,8 +166,8 @@ kama, ib_high, ib_low, ib_range
 ├── docker-compose.yml      # DEV service definition
 ├── pyproject.toml          # httpx, pydantic, typer, websocket-client, anthropic
 ├── .env.example            # 75+ configurable settings
-├── src/                    # Application code (15 core modules)
-├── tests/                  # 989 unit + 109 BDD + 7 regression
+├── src/                    # Application code (17 core services)
+├── tests/                  # 1314 unit + 115 BDD + 7 regression
 ├── analysis/               # Research & backtesting layer
 ├── scripts/                # smoke-test.sh
 └── docs/                   # Architecture, changelog, backlog, runbook
@@ -168,15 +179,17 @@ kama, ib_high, ib_low, ib_range
 
 | Metric | Value |
 |---|---|
-| Current version | v0.13.0 |
-| Unit tests | 989 |
-| BDD scenarios | 109 |
+| Current version | v0.18.0 (develop) |
+| Unit tests | 1314 |
+| BDD scenarios | 115 |
 | Regression tests | 7 |
-| Registered indicators | 24 |
-| Core services | 15 |
+| Registered indicators | 25 |
+| Core services | 17 |
 | External APIs | 3 |
 | CLI commands | 14 |
 | Configurable settings | 75+ |
+| Research experiments | 26 (EXP-001 to EXP-026) |
+| Data pipeline | Daily cron (02:30 ET) |
 
 ---
 

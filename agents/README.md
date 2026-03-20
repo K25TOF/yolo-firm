@@ -14,11 +14,11 @@ No agent can approve changes, deploy code, or modify production systems. Every o
 
 ## Agents
 
-| Agent | Role | Model | Key constraint |
+| Agent | Role | Tools | Key constraint |
 |---|---|---|---|
-| **Manager** | Session orchestrator, facilitator, gatekeeper | Haiku 4.5 | Cannot approve — only routes to PO |
-| **Analyst** | Hypothesis definition, result auditing, idea generation | Haiku 4.5 | Cannot run backtests or write code |
-| **Engineer** | Backtest execution, prototyping, technical assessment | Haiku 4.5 | Cannot interpret strategy quality |
+| **Manager** | SPOC, data execution, session facilitator | All | Cannot approve — only routes to PO |
+| **Optimist** | Finds alternative angles, never accepts defeat | update_memory | Cannot run backtests or access data directly |
+| **Challenger** | Demands evidence, finds errors, checks lookahead bias | update_memory | Cannot run backtests or access data directly |
 
 ---
 
@@ -26,18 +26,18 @@ No agent can approve changes, deploy code, or modify production systems. Every o
 
 ### What agents CAN do
 
-- Manager: orchestrate sessions, write minutes, flag items for PO review
-- Analyst: define hypotheses, audit results (not own), generate ideas, recommend strategy changes
-- Engineer: run backtests, write prototype scripts, challenge feasibility, propose engine stories
+- Manager: orchestrate sessions, run backtests, execute data tasks, write minutes, flag items for PO review
+- Optimist: propose alternative angles, find unexplored hypotheses, challenge premature conclusions, recommend strategy directions
+- Challenger: demand evidence for claims, find errors in methodology, check for lookahead bias, identify data quality issues
 
 ### What agents CANNOT do
 
 - Approve strategy changes, code changes, or capital decisions
 - Modify production engine or deploy code
 - Write to another agent's memory (identity enforcement)
-- Self-audit (Analyst cannot audit results from own hypotheses)
 - Operate without PO triggering the cycle
 - Communicate directly with each other — Manager mediates all interaction
+- Access data or run backtests directly (Optimist/Challenger) — Manager is the sole data executor
 
 ---
 
@@ -58,8 +58,9 @@ Manager defines:
 ### 3. Execution (Manager-led)
 
 - Manager addresses agents one at a time — strict turn-taking
-- Agents raise hand to contribute — Manager grants floor
-- No cross-talk between Analyst and Engineer
+- Both Optimist and Challenger must be invoked in every session — no exceptions
+- Manager injects full data context into every routing message (agents have no memory of prior turns)
+- No cross-talk between Optimist and Challenger
 - Manager can redirect, challenge, or terminate at any point
 - If agents reach impasse, Manager terminates and escalates to PO
 
@@ -113,8 +114,8 @@ Agents can write to their own memory file directly using the `update_memory` too
 | Agent | File |
 |---|---|
 | Manager | `agents/manager/memory.md` |
-| Analyst | `agents/analyst/memory.md` |
-| Engineer | `agents/engineer/memory.md` |
+| Optimist | `agents/optimist/memory.md` |
+| Challenger | `agents/challenger/memory.md` |
 
 ---
 
@@ -126,15 +127,16 @@ agents/
   manager/
     system-prompt.md            # LLM system prompt — injected at session start
     context-manifest.md         # Documents loaded into context
-    memory-template.md          # Persistent memory (PO-approved updates)
-  analyst/
+    memory.md                   # Persistent memory
+  optimist/
     system-prompt.md
     context-manifest.md
-    memory-template.md
-  engineer/
+    memory.md
+  challenger/
     system-prompt.md
     context-manifest.md
-    memory-template.md
+    memory.md
+  _retired/                     # Archived agent definitions (analyst, engineer)
 ```
 
 ---

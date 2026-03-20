@@ -43,9 +43,9 @@ class TestInvokeAgentStreaming:
 
         result = invoke_agent_streaming(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="test",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
@@ -61,9 +61,9 @@ class TestInvokeAgentStreaming:
 
         result = invoke_agent_streaming(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="test",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
@@ -79,9 +79,9 @@ class TestInvokeAgentStreaming:
 
         result = invoke_agent_streaming(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="test",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
@@ -98,16 +98,16 @@ class TestInvokeAgentStreaming:
 
         invoke_agent_streaming(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="test",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
             ws_conn=mock_ws,
         )
 
-        # Should have sent: system "Turn: analyst" + tokens + cost
+        # Should have sent: system "Turn: optimist" + tokens + cost
         calls = mock_ws.send.call_args_list
         assert len(calls) >= 4  # system + "H" + "i" + cost
         # First is system turn notification
@@ -116,7 +116,7 @@ class TestInvokeAgentStreaming:
         # Second is first token
         token_msg = json.loads(calls[1][0][0])
         assert token_msg["type"] == "token"
-        assert token_msg["speaker"] == "analyst"
+        assert token_msg["speaker"] == "optimist"
 
     def test_no_ws_conn_still_works(self) -> None:
         mock_client = MagicMock()
@@ -125,9 +125,9 @@ class TestInvokeAgentStreaming:
         # ws_conn=None should not crash
         result = invoke_agent_streaming(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="test",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
@@ -146,9 +146,9 @@ class TestInvokeAgentStreaming:
         # Should not raise despite WS failure
         result = invoke_agent_streaming(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="test",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
@@ -163,9 +163,9 @@ class TestInvokeAgentStreaming:
 
         invoke_agent_streaming(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="Your turn",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
@@ -190,9 +190,9 @@ class TestInvokeAgentBlocking:
 
         result = invoke_agent(
             client=mock_client,
-            agent="analyst",
+            agent="optimist",
             message="test",
-            system_prompt="You are Analyst.",
+            system_prompt="You are Optimist.",
             docs=[],
             memory=None,
             model="claude-haiku-4-5-20251001",
@@ -207,7 +207,7 @@ class TestSendToWs:
 
     def test_sends_json(self) -> None:
         mock_ws = MagicMock()
-        msg = {"type": "token", "speaker": "analyst", "content": "hi"}
+        msg = {"type": "token", "speaker": "optimist", "content": "hi"}
         send_to_ws(mock_ws, msg)
         mock_ws.send.assert_called_once_with(json.dumps(msg))
 

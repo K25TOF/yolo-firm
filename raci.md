@@ -15,11 +15,11 @@ Strategic advisor and operating model owner. Defines stories, agrees AC, maintai
 ### Manager (Claude API — future)
 Orchestrates learning cycles. Owns token budget, session minutes, decision log, idea log, and all agent documentation. Initiates research cycles on PO trigger. Routes proposals to PO review. Runs session close routine after every cycle.
 
-### Analyst (Claude API — future)
-Trading specialist. Defines hypotheses, audits backtest results, self-educates via book knowledge base. Does not run backtests or write code. Raises hand to Manager when contributing.
+### Optimist (Claude API)
+Finds alternative angles, never accepts defeat. Proposes unexplored hypotheses, challenges premature conclusions, suggests refinements. Does not run backtests or access data directly — receives curated data packages from Manager.
 
-### Engineer (Claude API — future)
-Runs backtests using the engine. Writes one-off prototype scripts when engine cannot support a hypothesis. Proposes engine changes via story scope when prototypes prove value. Does not modify the production engine or deploy code.
+### Challenger (Claude API)
+Demands evidence, finds errors, checks for lookahead bias. Audits methodology, identifies data quality issues, enforces statistical rigour. Does not run backtests or access data directly — receives curated data packages from Manager.
 
 ### Workshop (Claude Code — VPS)
 Implements all stories. Owns codebase, TDD/BDD discipline, git branching, Docker. Delivers against agreed AC. Never deploys to PRD without PO approval. Performs session close self-check after each story delivery.
@@ -28,16 +28,16 @@ Implements all stories. Owns codebase, TDD/BDD discipline, git branching, Docker
 
 ## RACI Matrix
 
-| Activity | PO | Boardroom | Manager | Analyst | Engineer | Workshop |
+| Activity | PO | Boardroom | Manager | Optimist | Challenger | Workshop |
 |---|---|---|---|---|---|---|
 | Define vision & strategy | A | R | I | I | I | I |
 | Approve story AC | A | R | I | — | — | C |
 | Implement stories | I | — | — | — | — | R/A |
 | Deploy to PRD | A | — | — | — | — | R |
 | Initiate learning cycle | A | — | R | I | I | — |
-| Define hypothesis | I | — | C | R/A | — | — |
-| Run backtest | I | — | C | C | R/A | — |
-| Audit backtest results | I | — | C | R/A | — | — |
+| Define hypothesis | I | — | C | R | C | — |
+| Run backtest | I | — | R/A | — | — | — |
+| Audit backtest results | I | — | C | C | R/A | — |
 | Propose strategy change | A | — | R | C | C | — |
 | Approve memory updates | A | — | C | — | — | — |
 | Maintain firm documents | A | R | C | — | — | — |
@@ -53,9 +53,10 @@ _R=Responsible, A=Accountable, C=Consulted, I=Informed_
 
 | Concern | Separation |
 |---|---|
-| Strategy research vs live execution | Analyst/Engineer (research) vs Workshop/pipeline (execution) |
+| Strategy research vs live execution | Optimist/Challenger (research) vs Workshop/pipeline (execution) |
 | Code change vs deployment approval | Workshop (implements) vs PO (approves PRD) |
-| Hypothesis vs audit | Analyst defines, Engineer runs, Analyst audits — no self-auditing |
+| Hypothesis vs audit | Optimist proposes, Challenger audits — separated by design |
+| Data execution vs analysis | Manager runs backtests, Optimist/Challenger analyse results |
 | Document authoring vs approval | Boardroom authors, PO approves all changes |
 | Agent memory vs updates | Agents flag candidates, PO approves all memory changes |
 
@@ -63,7 +64,7 @@ _R=Responsible, A=Accountable, C=Consulted, I=Informed_
 
 ## Session Close Routine
 
-After every story delivery (Workshop) and every research cycle (Analyst, Engineer):
+After every story delivery (Workshop) and every research cycle (Optimist, Challenger):
 
 1. Self-check: did this session surface anything not already in persistent memory or documentation?
 2. If yes: flag to Manager with suggested memory update

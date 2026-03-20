@@ -28,7 +28,7 @@ class TestBroadcast:
         ws = AsyncMock()
         CONNECTED_CLIENTS.add(ws)
 
-        msg = {"type": "token", "speaker": "analyst", "content": "hello"}
+        msg = {"type": "token", "speaker": "optimist", "content": "hello"}
         asyncio.run(broadcast(msg))
 
         ws.send.assert_called_once_with(json.dumps(msg))
@@ -60,7 +60,7 @@ class TestBroadcast:
         ws.send = AsyncMock(side_effect=Exception("disconnected"))
         CONNECTED_CLIENTS.add(ws)
 
-        msg = {"type": "token", "speaker": "analyst", "content": "hello"}
+        msg = {"type": "token", "speaker": "optimist", "content": "hello"}
         asyncio.run(broadcast(msg))
 
         assert ws not in CONNECTED_CLIENTS
@@ -196,7 +196,7 @@ class TestHandleCommand:
             server.INTERRUPT_FLAG = original
 
     def test_non_command_returns_false(self) -> None:
-        data = {"type": "token", "speaker": "analyst", "content": "hello"}
+        data = {"type": "token", "speaker": "optimist", "content": "hello"}
         result = asyncio.run(handle_command(data))
         assert result is False
 
@@ -222,7 +222,7 @@ class TestMessageBuffer:
         CONNECTED_CLIENTS.clear()
 
     def test_broadcast_appends_to_buffer(self) -> None:
-        msg = {"type": "token", "speaker": "analyst", "content": "hello"}
+        msg = {"type": "token", "speaker": "optimist", "content": "hello"}
         asyncio.run(broadcast(msg))
         assert len(MESSAGE_BUFFER) == 1
         assert MESSAGE_BUFFER[0] == msg
@@ -231,7 +231,7 @@ class TestMessageBuffer:
         msgs = [
             {"type": "system", "speaker": "system", "content": "Session started"},
             {"type": "token", "speaker": "manager", "content": "Hello"},
-            {"type": "token", "speaker": "analyst", "content": "World"},
+            {"type": "token", "speaker": "optimist", "content": "World"},
         ]
         for m in msgs:
             asyncio.run(broadcast(m))
@@ -244,7 +244,7 @@ class TestMessageBuffer:
 
     def test_non_session_complete_system_msg_keeps_buffer(self) -> None:
         asyncio.run(broadcast({"type": "system", "speaker": "system", "content": "Session started"}))
-        asyncio.run(broadcast({"type": "system", "speaker": "system", "content": "Turn: analyst"}))
+        asyncio.run(broadcast({"type": "system", "speaker": "system", "content": "Turn: optimist"}))
         assert len(MESSAGE_BUFFER) == 2
 
     def _make_ws(self, messages: list[str] | None = None) -> AsyncMock:

@@ -21,10 +21,12 @@ OPEN → QUESTION → AGENT TURNS → CLOSE → MINUTES
 
 **AGENT TURNS:** Manager addresses agents one at a time. Agent responds. Manager may follow up, redirect, or move to next agent. No cross-talk between agents.
 
-**CLOSE:** Manager runs session close routine:
-1. Summarise findings
-2. Ask each agent: "Anything for persistent memory?"
-3. Note any items requiring PO review
+**CLOSE:** Manager runs session close routine (autonomous — does not wait for further instructions):
+1. Write 3-5 bullet synthesis of key findings
+2. List all FLAG FOR CONTEXT items raised
+3. Ask each agent if they have additional flags (one final turn each)
+4. Update context files with agreed flags
+5. Write "=== SESSION CLOSED ===" and stop
 
 **MINUTES:** Manager writes structured session minutes (see format below).
 
@@ -66,57 +68,84 @@ Next action: [what happens next]
 Memory updates: [any flagged]
 ```
 
-### Analyst
+### Optimist
 
 **Raising hand:**
 ```
-Analyst here — [brief preview of contribution]
+Optimist here — [brief preview of contribution]
 ```
 
-**Hypothesis proposal:**
+**Alternative angle proposal:**
 ```
-HYP-[NNN]
-Question: [what are we testing?]
-Signal: [exact criteria]
-Expected: [what should improve]
-Falsification: [what disproves this]
+Alternative angle for [topic]:
+Observation: [what the data might also show]
+Unexplored: [what hasn't been tested yet]
+Proposal: [specific next step]
+Risk if ignored: [what we miss by not pursuing this]
 ```
 
-**Audit result:**
+**Hypothesis refinement:**
+```
+HYP-[NNN] refinement
+Original signal: [what was tested]
+Alternative framing: [different way to interpret results]
+Suggested next test: [specific experiment]
+```
+
+### Challenger
+
+**Raising hand:**
+```
+Challenger here — [brief preview]
+```
+
+**Evidence demand:**
+```
+Challenge: [claim being questioned]
+Evidence required: [what would prove/disprove this]
+Bias risk: [lookahead, selection, survivorship, etc.]
+Verdict: [PASS / FAIL / INSUFFICIENT DATA]
+```
+
+**Methodology audit:**
 ```
 Audit of EXP-[NNN]
-Trades: [total] (divergent: [count])
+Lookahead bias: [clean / contaminated — detail]
+Sample size: [sufficient / insufficient — N trades]
 Outlier dependency: [yes/no — detail]
-Confidence: [high/medium/low — reasoning]
-Observation: [what the data shows]
-Conclusion: [what this means]
+Design-subset contamination: [yes/no]
+Verdict: [PASS / FAIL / CONDITIONAL]
 ```
 
-### Engineer
+---
 
-**Raising hand:**
-```
-Engineer here — [brief preview]
-```
+## Research Session Protocol
 
-**Feasibility assessment:**
-```
-Feasibility: HYP-[NNN]
-Can engine test this: [yes/no]
-Concerns: [any issues]
-Prototype needed: [yes/no — why]
-```
+Both Optimist and Challenger must be invoked in every research session — non-negotiable.
 
-**Result report:**
-```
-EXP-[NNN] Results
-Parameters: [exact settings]
-Trades: [count]
-Win rate: [exact %]
-P&L: [total, avg per trade]
-Exit distribution: [breakdown]
-Notes: [caveats, data issues]
-```
+1. A data gap is not a reason to skip Challenger — Challenger evaluates what data is missing
+2. Manager injects full data context into every routing message (`[NEXT: optimist]`, `[NEXT: challenger]`)
+3. Each agent invocation is independent — agents have no memory of prior turns
+4. Manager provides curated data packages (extracts, findings, code snippets) — never file paths
+5. Optimist proposes alternative angles — Manager runs those tests and reports back
+6. Challenger demands evidence — Manager provides it from data access
+7. Challenger checks for lookahead bias — findings are blocking until Challenger clears them
+8. Manager is the sole executor of data tasks — agents analyse, Manager runs
+
+## Session Close Protocol
+
+After both Optimist and Challenger have responded:
+
+1. Write a 3-5 bullet synthesis of the key findings
+2. List all FLAG FOR CONTEXT items raised
+3. Ask each agent if they have additional flags (one final turn each)
+4. Update context files with agreed flags
+5. Write "=== SESSION CLOSED ===" and stop
+
+Do not wait for further instructions — close autonomously after step 5.
+
+Note: Optimist and Challenger lose all session knowledge on next invocation.
+Only what is written to context files survives.
 
 ---
 
@@ -196,8 +225,8 @@ Written by Manager at session close:
 **Question:** [what were we investigating?]
 
 **Contributions:**
-- Analyst: [key points]
-- Engineer: [key points]
+- Optimist: [key points]
+- Challenger: [key points]
 
 **Outcome:** [what was concluded]
 
