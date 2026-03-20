@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 AGENTS_DIR = Path(__file__).parent
 MIN_TRADE_GATE = 50
 MOMENTUM_THRESHOLD = 0.50
-VALID_AGENTS = {"analyst", "engineer", "manager"}
+VALID_AGENTS = {"optimist", "challenger", "manager"}
 
 
 def resolve_yolo_repo() -> Path:
@@ -199,7 +199,7 @@ def update_memory(
     """Write content to an agent's memory file.
 
     Args:
-        agent: Target agent name (analyst, engineer, manager).
+        agent: Target agent name (optimist, challenger, manager).
         content: Full markdown content to write to memory.md.
         agents_dir: Override agents directory (for testing).
         calling_agent: Identity of the agent making the call (for enforcement).

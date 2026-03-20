@@ -1,8 +1,8 @@
 """Single-agent invocation script with context loading, session logging, and memory extraction.
 
 Usage:
-    python invoke.py --agent analyst --message "What hypotheses should we test next?"
-    python invoke.py --agent engineer --message "Run EXP-020" --dry-run
+    python invoke.py --agent optimist --message "What hypotheses should we test next?"
+    python invoke.py --agent challenger --message "Review this finding" --dry-run
 """
 
 from __future__ import annotations
@@ -287,7 +287,7 @@ def _update_memory_tool_def() -> dict:
             "properties": {
                 "agent": {
                     "type": "string",
-                    "enum": ["analyst", "engineer", "manager"],
+                    "enum": ["optimist", "challenger", "manager"],
                     "description": "Your agent name (must match your identity).",
                 },
                 "content": {
@@ -303,11 +303,11 @@ def _update_memory_tool_def() -> dict:
 def get_agent_tools(agent_name: str) -> list[dict]:
     """Return tool definitions for a given agent.
 
-    Engineer gets: run_backtest + update_memory.
-    Analyst and Manager get: update_memory only.
+    Manager gets: run_backtest + update_memory.
+    Optimist and Challenger get: update_memory only.
     """
     memory_tool = _update_memory_tool_def()
-    if agent_name == "engineer":
+    if agent_name == "manager":
         return get_engineer_tools() + [memory_tool]
     return [memory_tool]
 
@@ -315,7 +315,7 @@ def get_agent_tools(agent_name: str) -> list[dict]:
 def main() -> None:
     """CLI entry point for single-agent invocation."""
     parser = argparse.ArgumentParser(description="Invoke a single YOLO Org Learning agent.")
-    parser.add_argument("--agent", required=True, choices=["manager", "analyst", "engineer"],
+    parser.add_argument("--agent", required=True, choices=["manager", "optimist", "challenger"],
                         help="Agent to invoke")
     parser.add_argument("--message", required=True, help="Message to send to the agent")
     parser.add_argument("--model", default="claude-haiku-4-5-20251001",

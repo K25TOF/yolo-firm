@@ -81,7 +81,7 @@ TradingEngine, StrategyBrain, OrderManager, safety rails.
 5.3b — VWAP, RSI, Spread Ratio, snapshot CSV
 5.3c — TTM Squeeze, Force Index, KAMA
 5.3d — Volume Decay exit, Initial Balance (24 indicators)
-5.4 🔲 Agent Definitions (Manager, Analyst, Engineer)
+5.4 ✅ Agent Model Restructure (Manager, Optimist, Challenger)
 5.5 🔲 Session log + communication protocol
 5.6 🔲 Manager-led learning cycle
 5.7 🔲 PO review document + async approval flow

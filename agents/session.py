@@ -50,7 +50,7 @@ FIRM_REPO = AGENTS_DIR.parent
 YOLO_REPO = FIRM_REPO.parent / "yolo"
 INTERRUPT_FLAG = AGENTS_DIR / "session-interrupt.flag"
 
-VALID_AGENTS = {"analyst", "engineer", "manager"}
+VALID_AGENTS = {"optimist", "challenger", "manager"}
 _NEXT_RE = re.compile(r"\[NEXT:\s*(\w+)\s*\]", re.IGNORECASE)
 _BLOCKER_RE = re.compile(r"\[BLOCKER:\s*(.+?)\s*\]", re.IGNORECASE)
 _SCOPE_BLOCKING_RE = re.compile(r"\[SCOPE REQUEST BLOCKING:\s*(.+?)\s*\]", re.IGNORECASE)
@@ -546,7 +546,7 @@ def run_session(
     # --- DRY RUN MODE ---
     if dry_run:
         print(f"=== DRY RUN: session {session_id} ===")
-        for agent_name in ("manager", "analyst", "engineer"):
+        for agent_name in ("manager", "optimist", "challenger"):
             prompt, docs, missing, memory = load_agent_context(
                 agent_name, agents_dir, firm_repo, yolo_repo,
             )

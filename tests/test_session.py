@@ -56,17 +56,17 @@ class TestTokenTracker:
     def test_accumulates_multiple_turns(self) -> None:
         tracker = TokenTracker()
         tracker.turns.append(TurnResult("manager", "q1", "r1", 100, 50, None))
-        tracker.turns.append(TurnResult("analyst", "q2", "r2", 200, 80, None))
+        tracker.turns.append(TurnResult("optimist", "q2", "r2", 200, 80, None))
         assert tracker.total_input == 300
         assert tracker.total_output == 130
 
     def test_summary_includes_per_turn_breakdown(self) -> None:
         tracker = TokenTracker()
         tracker.turns.append(TurnResult("manager", "q", "r", 100, 50, None))
-        tracker.turns.append(TurnResult("analyst", "q", "r", 200, 80, None))
+        tracker.turns.append(TurnResult("optimist", "q", "r", 200, 80, None))
         summary = tracker.summary()
         assert "manager" in summary.lower()
-        assert "analyst" in summary.lower()
+        assert "optimist" in summary.lower()
         assert "300" in summary  # total input
         assert "130" in summary  # total output
 
@@ -92,12 +92,12 @@ class TestBuildTranscript:
     def test_multiple_turns_in_order(self) -> None:
         turns = [
             TurnResult("manager", "Open", "Opened.", 100, 50, None),
-            TurnResult("analyst", "Question", "Analysis.", 200, 80, None),
+            TurnResult("optimist", "Question", "Analysis.", 200, 80, None),
         ]
         transcript = build_transcript(turns)
         manager_pos = transcript.index("Manager")
-        analyst_pos = transcript.index("Analyst")
-        assert manager_pos < analyst_pos
+        optimist_pos = transcript.index("Optimist")
+        assert manager_pos < optimist_pos
 
     def test_excludes_token_counts_from_transcript(self) -> None:
         turns = [TurnResult("manager", "q", "r", 12345, 67890, None)]
@@ -190,7 +190,7 @@ class TestRunSession:
         log_dir = agents / "session-log"
         log_dir.mkdir()
 
-        for agent in ("manager", "analyst", "engineer"):
+        for agent in ("manager", "optimist", "challenger"):
             d = agents / agent
             d.mkdir()
             (d / "system-prompt.md").write_text(f"You are {agent.title()}.")
@@ -229,7 +229,7 @@ class TestRunSession:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
         mock_client.messages.create.side_effect = [
-            self._mock_api_response("Opening. [NEXT: analyst]"),
+            self._mock_api_response("Opening. [NEXT: optimist]"),
             self._mock_api_response("Analysis done."),
             self._mock_api_response("Closing. [SESSION_COMPLETE]"),
         ]
@@ -287,8 +287,8 @@ class TestRunSession:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
         mock_client.messages.create.side_effect = [
-            self._mock_api_response("Manager opens. [NEXT: analyst]"),
-            self._mock_api_response("Analyst responds."),
+            self._mock_api_response("Manager opens. [NEXT: optimist]"),
+            self._mock_api_response("Optimist responds."),
             self._mock_api_response("Manager closes. [SESSION_COMPLETE]"),
         ]
 
@@ -307,7 +307,7 @@ class TestRunSession:
         assert len(log_files) == 1
         content = log_files[0].read_text()
         assert "Manager opens." in content
-        assert "Analyst responds." in content
+        assert "Optimist responds." in content
         assert "Manager closes." in content
 
     def test_dry_run_skips_api_calls(self, session_env: dict) -> None:
@@ -333,7 +333,7 @@ class TestRunSession:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
         mock_client.messages.create.side_effect = [
-            self._mock_api_response("Manager opens. [NEXT: analyst]"),
+            self._mock_api_response("Manager opens. [NEXT: optimist]"),
             self._mock_api_response(
                 "Analysis.\n\n[MEMORY UPDATE]\n- New finding: X\n",
             ),
@@ -571,8 +571,8 @@ class TestInvokeAgentToolUse:
 
         with patch.dict("session.TOOL_DISPATCH", {"run_backtest": mock_backtest}):
             result = invoke_agent(
-                client=mock_client, agent="engineer", message="Run test",
-                system_prompt="You are Engineer.", docs=[], memory=None,
+                client=mock_client, agent="challenger", message="Run test",
+                system_prompt="You are Challenger.", docs=[], memory=None,
                 model="claude-haiku-4-5-20251001", tools=tools,
             )
 
@@ -599,7 +599,7 @@ class TestInvokeAgentToolUse:
 
         with patch.dict("session.TOOL_DISPATCH", {"run_backtest": mock_backtest}):
             result = invoke_agent(
-                client=mock_client, agent="engineer", message="Test",
+                client=mock_client, agent="challenger", message="Test",
                 system_prompt="S", docs=[], memory=None,
                 model="claude-haiku-4-5-20251001", tools=tools,
             )
@@ -615,8 +615,8 @@ class TestInvokeAgentToolUse:
         )
 
         result = invoke_agent(
-            client=mock_client, agent="analyst", message="Analyse this",
-            system_prompt="You are Analyst.", docs=[], memory=None,
+            client=mock_client, agent="optimist", message="Analyse this",
+            system_prompt="You are Optimist.", docs=[], memory=None,
             model="claude-haiku-4-5-20251001",
         )
 
@@ -630,13 +630,13 @@ class TestInvokeAgentToolUse:
 class TestParseNextAgent:
     """Tests for _parse_next_agent tag extraction."""
 
-    def test_extracts_analyst(self) -> None:
+    def test_extracts_optimist(self) -> None:
         from session import _parse_next_agent
-        assert _parse_next_agent("Some text [NEXT: analyst] more text") == "analyst"
+        assert _parse_next_agent("Some text [NEXT: optimist] more text") == "optimist"
 
-    def test_extracts_engineer(self) -> None:
+    def test_extracts_challenger(self) -> None:
         from session import _parse_next_agent
-        assert _parse_next_agent("Result [NEXT: engineer]") == "engineer"
+        assert _parse_next_agent("Result [NEXT: challenger]") == "challenger"
 
     def test_extracts_manager(self) -> None:
         from session import _parse_next_agent
@@ -644,12 +644,12 @@ class TestParseNextAgent:
 
     def test_case_insensitive(self) -> None:
         from session import _parse_next_agent
-        assert _parse_next_agent("[NEXT: Analyst]") == "analyst"
-        assert _parse_next_agent("[NEXT: ENGINEER]") == "engineer"
+        assert _parse_next_agent("[NEXT: Optimist]") == "optimist"
+        assert _parse_next_agent("[NEXT: CHALLENGER]") == "challenger"
 
     def test_strips_whitespace(self) -> None:
         from session import _parse_next_agent
-        assert _parse_next_agent("[NEXT:  analyst  ]") == "analyst"
+        assert _parse_next_agent("[NEXT:  optimist  ]") == "optimist"
 
     def test_returns_none_when_no_tag(self) -> None:
         from session import _parse_next_agent
@@ -671,7 +671,7 @@ class TestDynamicSession:
         log_dir = agents / "session-log"
         log_dir.mkdir()
 
-        for agent in ("manager", "analyst", "engineer"):
+        for agent in ("manager", "optimist", "challenger"):
             d = agents / agent
             d.mkdir()
             (d / "system-prompt.md").write_text(f"You are {agent.title()}.")
@@ -735,8 +735,8 @@ class TestDynamicSession:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
         mock_client.messages.create.side_effect = [
-            self._mock_api_response("Opening. [NEXT: analyst]"),
-            self._mock_api_response("Analysis done."),  # analyst turn routes back to manager
+            self._mock_api_response("Opening. [NEXT: optimist]"),
+            self._mock_api_response("Analysis done."),  # optimist turn routes back to manager
             self._mock_api_response("Closing. [SESSION_COMPLETE]"),
         ]
 
@@ -758,9 +758,9 @@ class TestDynamicSession:
     ) -> None:
         mock_client = MagicMock()
         mock_create.return_value = mock_client
-        # Manager keeps routing to analyst forever
+        # Manager keeps routing to optimist forever
         mock_client.messages.create.return_value = self._mock_api_response(
-            "Continuing. [NEXT: analyst]",
+            "Continuing. [NEXT: optimist]",
         )
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
@@ -822,7 +822,7 @@ class TestBlockerAndScopeRequest:
         log_dir = agents / "session-log"
         log_dir.mkdir()
 
-        for agent in ("manager", "analyst", "engineer"):
+        for agent in ("manager", "optimist", "challenger"):
             d = agents / agent
             d.mkdir()
             (d / "system-prompt.md").write_text(f"You are {agent.title()}.")
@@ -925,7 +925,7 @@ class TestBlockerAndScopeRequest:
         mock_client.messages.create.side_effect = [
             self._mock_api_response(
                 "Interesting finding. [SCOPE REQUEST: Test squeeze indicators] "
-                "[NEXT: analyst]",
+                "[NEXT: optimist]",
             ),
             self._mock_api_response("Analysis."),
             self._mock_api_response("Closing. [SESSION_COMPLETE]"),

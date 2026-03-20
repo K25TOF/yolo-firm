@@ -121,7 +121,7 @@ class TestWriteSessionLog:
         write_session_log(
             log_dir=tmp_path,
             session_id="test-session",
-            agent="analyst",
+            agent="optimist",
             model="claude-haiku-4-5-20251001",
             context_files=["raci.md", "strategy-roadmap.md"],
             missing_files=[],
@@ -136,7 +136,7 @@ class TestWriteSessionLog:
         write_session_log(
             log_dir=tmp_path,
             session_id="test-session",
-            agent="analyst",
+            agent="optimist",
             model="claude-haiku-4-5-20251001",
             context_files=["raci.md"],
             missing_files=[],
@@ -147,13 +147,13 @@ class TestWriteSessionLog:
         content = log_file.read_text()
         assert "What should we test?" in content
         assert "Volume filters." in content
-        assert "analyst" in content.lower()
+        assert "optimist" in content.lower()
 
     def test_log_notes_missing_files(self, tmp_path: Path) -> None:
         write_session_log(
             log_dir=tmp_path,
             session_id="test-session",
-            agent="analyst",
+            agent="optimist",
             model="claude-haiku-4-5-20251001",
             context_files=["raci.md"],
             missing_files=["missing.md"],
@@ -170,7 +170,7 @@ class TestWriteSessionLog:
             write_session_log(
                 log_dir=tmp_path,
                 session_id="multi-turn",
-                agent="analyst",
+                agent="optimist",
                 model="claude-haiku-4-5-20251001",
                 context_files=["raci.md"],
                 missing_files=[],
