@@ -12,10 +12,12 @@ _Owner: Boardroom | Approved by: PO | Version: 1.0_
 Every learning session follows this flow:
 
 ```
-OPEN → QUESTION → AGENT TURNS → CLOSE → MINUTES
+OPEN → CONFIRM → QUESTION → AGENT TURNS → CLOSE → MINUTES
 ```
 
 **OPEN:** Manager states the objective, time-box, and which agents are needed.
+
+**CONFIRM:** Manager responds with a 3 Amigos confirmation — restating their understanding of the brief, planned actions, scope boundaries, and expected deliverables. PO reviews and confirms before execution proceeds. This step is mandatory for all research sessions.
 
 **QUESTION:** Manager poses the specific question or task for this cycle.
 
