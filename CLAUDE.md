@@ -64,6 +64,7 @@ This runs sessions back-to-back, marking tasks complete as they finish. Stops on
 - Update agent memory files without PO approval
 - Start a session without PO trigger
 - Override agent recommendations — escalate to PO instead
+- **Overwrite or regenerate a reviewed list.** If `feedback/{list_name}.json` exists, that list is frozen. New logic must produce a new versioned list (`_v2.json`). No exceptions.
 
 ## Key References
 

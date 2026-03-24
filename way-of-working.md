@@ -88,6 +88,11 @@ interface for visual research review. All agents follow these rules:
 Never overwrite an active list — increment the version number.
 Existing lists (`trades.json`, `runners.json`) are grandfathered.
 
+**List immutability:** A list with PO feedback is frozen. Once
+`feedback/{list_name}.json` exists, the corresponding list must never be
+regenerated, overwritten, or deleted. Improved logic must produce a new
+versioned list (`_v2.json`). No exceptions.
+
 **Feedback:** Manager owns and commits feedback files in
 `analysis/tools/feedback/`. Feedback is never deleted.
 
