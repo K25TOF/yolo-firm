@@ -4,7 +4,7 @@
 
 - Current phase: Phase 5 — Triple Loop (Learning)
 - Active strategy: vol_filter v2.1.0 (paper, not production ready — EXP-023 verdict)
-- Last experiment: LC-2025-007 — IDEA-018 Combined Overextended Entry Filter (FAIL)
+- Last experiment: LC-2025-014 — Runner Universe ORB Breakout Research (clean tradeable universe defined, 236 entries)
 - PRD version: v0.13.0
 
 ## Open items for PO review
@@ -15,21 +15,46 @@ Items below LC-2025-007 were bulk-approved by PO (2026-03-07 audit handoff). Age
 - LC-2025-005: Scope request — add RVOL threshold as universe filter parameter to backtester (alongside momentum_universe). Required to re-validate EXP-023 on correct universe.
 - LC-2025-006: Add IDEA-019 to ideas.md — ATR isolation test on broad momentum universe
 - LC-2025-006: Update strategy-roadmap.md Research State section — ranked leads for next phase
-- ~~Engine story: Expose trade distribution metrics~~ — DONE (Story 5.12). run_backtest now returns avg_winner_pct, avg_loser_pct, median_pnl_pct, max_single_trade_pnl_pct, top10_pnl_contribution_pct.
-- ~~Engine story: Fix dates="all" resolution~~ — DONE (Story 5.13). dates="all", ["all"], [], or omit all work.
+- ~~Engine story: Expose trade distribution metrics~~ — DONE (Story 5.12).
+- ~~Engine story: Fix dates="all" resolution~~ — DONE (Story 5.13).
+- **LC-2025-012 (pending PO approval):** Update session history in memory. Record ignition event definition. Note engine capability gaps (rolling-window-of-indicator, bar-body geometry, prior-N-bar-high breakout — four of five ignition conditions unimplementable via BacktestEngine).
 
 ## Session history (last 5)
 
+- LC-2025-014 (ORB breakout research): 450-stock multibagger universe (mcap ≥ $10M, float_turnover ≥ 0.50x). ORB entry: first bar after 09:45 with bar_high ≥ ORB high + vol_ratio ≥ 2.0x + B-1 coil within -4%. 298 PO-rated entries (128 v1 + 170 v2). After $10K/min liquidity gate: 236 tradeable entries (~56% Good). Clean tradeable universe defined.
+- LC-2025-012 (ignition event research): Script complete, pending VPS execution. Five ignition conditions defined and Analyst-approved. BacktestEngine approximation ruled out (too lossy). PO to run `python analysis/scratch/zz_ignition_phase1_2.py` from project root and return output for Analyst audit.
 - LC-2025-011 (RVOL threshold): volume_ratio_ema threshold 2.0→5.0 on broad universe. +3.51pp WR at 5.0x but all thresholds net negative. Stable +0.035pp WR per 1% trade reduction. RVOL is a working knob but cannot fix core edge. First attempt blocked by dates="all" issue (now fixed in Story 5.13).
 - LC-2025-010 (IDEA-018 test): AND-subset (gap >4% AND vol >5x) = 316 trades, 29.10% WR, +1.12pp above baseline — not a loser archetype. IDEA-018 FAIL — retired. Source findings (EXP-012, EXP-021) confirmed as hand-picked artefacts.
 - LC-2025-009 (ATR isolation): ATR exit on broad universe — +1.63pp WR, +1,186.9pp PnL vs EMA-only. PASS (marginal). Directionally consistent with EXP-016 but smaller magnitude. Does not fix core edge problem.
 - LC-2025-008 (gap accel filter): ema_gap_acceleration < 1.0 on vol_filter — 98.6% trade reduction (6,347→88), WR -4.0pp. Filter structurally incompatible with 3.0% entry. FAIL. Belongs in grinder context only (IDEA-021).
-- LC-2025-007 (HYP-025 re-test): Grinder strategy corrected exit (0.5%) on broad universe — 12,024 trades, 32.5% WR, 4.9 bar hold. Exit too tight (0.5pp decay room). FAIL on WR and hold profile targets.
+
+## Ignition event definition (LC-2025-012)
+
+All five conditions must be true on the ignition bar:
+1. `volume_ratio_ema >= 5.0`
+2. `close > open` (green candle)
+3. `(close - open) / (high - low) >= 0.70` (body ratio; zero-range bars excluded)
+4. Prior 10 intra-session bars: price range < 3% of close AND `volume_ratio_ema` max < 1.5
+5. `close > max(high)` of prior 10 intra-session bars
+
+Phase 2 safe entry: price hits +7% above ignition close (5% target + 2% slippage) before returning to ignition close. Simultaneous hit (same bar: high ≥ target AND low ≤ return) = not safe (conservative).
+
+Script: `analysis/scratch/zz_ignition_phase1_2.py` — assembled and ready. Run from `/home/claude/projects/yolo/`.
+
+## Engine capability gaps (confirmed LC-2025-012)
+
+BacktestEngine cannot implement:
+- Rolling-window-of-indicator comparison (e.g., max VR over prior N bars)
+- Bar-body geometry indicator (close-open / high-low ratio)
+- Prior-N-bar-high breakout condition
+- Green candle (close > open within bar; price_change_pct measures close-to-close, not open-to-close)
+
+Only 1 of 5 ignition conditions is directly expressible via engine entry rules. Prototype script is the only valid path for this hypothesis class.
 
 ## Agent observations
 
-- Analyst strengths/patterns: Strong on logical chain. EXP-023 universe mismatch identification (RVOL-gated vs 50% range) was sharp and materially changed the session conclusion. Correctly separates WR stability from PnL collapse as different signals. Will partially own design weaknesses. Flags protocol items clearly. LC-2025-006: Excellent synthesis depth — surfaced time-of-day contradiction (EXP-012 vs EXP-021 measure different things), ATR subset dependency (moderate movers only), and first-entry/re-entry effect magnitude difference between hand-picked and scanner datasets. LC-2025-007: Immediately caught Config B formulation error (OR vs AND), directed pivot to AND-subset analysis efficiently.
-- Engineer strengths/patterns: Strong pre-run diagnostics. Surfaced universe mismatch in EXP-014 diagnostic run before reporting. Delivered clean ATR isolation comparison in batch 2 (same universe, both configs). Correctly assessed RVOL-gating as out of scope rather than attempting a workaround. Flags engine anomalies (win_rate display bug) without being asked. LC-2025-007: Proactively flagged CSV-read limitation before attempting, proposed AND-subset backtest as clean workaround, raised hand for approval before running.
+- Analyst strengths/patterns: Strong on logical chain. EXP-023 universe mismatch identification (RVOL-gated vs 50% range) was sharp and materially changed the session conclusion. Correctly separates WR stability from PnL collapse as different signals. Will partially own design weaknesses. Flags protocol items clearly. LC-2025-006: Excellent synthesis depth — surfaced time-of-day contradiction (EXP-012 vs EXP-021 measure different things), ATR subset dependency (moderate movers only), and first-entry/re-entry effect magnitude difference between hand-picked and scanner datasets. LC-2025-007: Immediately caught Config B formulation error (OR vs AND), directed pivot to AND-subset analysis efficiently. LC-2025-012: Clean methodology audit — identified the intra-bar ordering ambiguity and ruled conservative before execution. Correct call at baseline measurement stage.
+- Engineer strengths/patterns: Strong pre-run diagnostics. Surfaced universe mismatch in EXP-014 diagnostic run before reporting. Delivered clean ATR isolation comparison in batch 2 (same universe, both configs). Correctly assessed RVOL-gating as out of scope rather than attempting a workaround. Flags engine anomalies (win_rate display bug) without being asked. LC-2025-007: Proactively flagged CSV-read limitation before attempting, proposed AND-subset backtest as clean workaround, raised hand for approval before running. LC-2025-012: Correctly assessed BacktestEngine approximation as too lossy (only 1/5 conditions implementable) and recommended PO manual execution rather than running a degraded test.
 
 ## Key lessons
 
@@ -48,6 +73,7 @@ Items below LC-2025-007 were bulk-approved by PO (2026-03-07 audit handoff). Age
 - **Combined overextended profile (gap >4% AND vol >5x) is rare** — only 5% of vol_filter entries on the broad universe (316 of ~6,275 trades). Not a dominant signal regime.
 - **Engine has no native AND-gate rejection logic.** Workaround: invert the rejection condition as additional entry rules (AND-gate inclusion). To test a blocking hypothesis, run a backtest where the block condition IS the entry requirement — this isolates the subset directly.
 - **Hand-picked artefact pattern is now confirmed across 4+ cases:** EXP-010/011, EXP-012/021, EXP-014, IDEA-018. Positive hand-picked findings should be treated as hypotheses only until broad universe validation.
+- **Prototype script path is required for hypotheses using rolling-window-of-indicator comparisons, bar-body geometry, or prior-N-bar-high breakouts.** BacktestEngine cannot express these. Do not attempt approximation — it measures the wrong thing. Route to PO for VPS execution.
 - Class A re-run priority order (historical reference): EXP-023 (17-day batch), EXP-022 (skip-first), EXP-016 (ATR exit), EXP-014 (EMA-10 volume ratio) — all now completed.
 - Missing engine dependencies (not blocking Class A, historical reference): hold-duration exit (cut_bar_5), adaptive bar-5 exit, `max_bar_chg_5b`, `price_chg_10b` indicators.
 
@@ -65,4 +91,6 @@ All 5 tested leads from LC-2025-006 are now closed:
 
 **Remaining untested:** VWAP asymmetric threshold (IDEA-017) — sub-$1 vs >$1 separate thresholds. Low effect size, low effort.
 
-**Strategic assessment:** Vol_filter has no edge on the broad momentum universe. All marginal improvements (ATR, RVOL) reduce losses but cannot flip the strategy to profitable. Next research direction requires PO guidance — either (a) pursue grinder strategy with redesigned exit, (b) explore entirely new signal types, or (c) focus on scanner/universe improvements.
+**New direction (LC-2025-012):** Ignition event research — fundamentally different hypothesis class from vol_filter variants. Tests whether extreme-volume breakouts from calm/flat bases have a structurally different (higher) safe entry rate. Results pending VPS execution.
+
+**Strategic assessment:** Vol_filter has no edge on the broad momentum universe. All marginal improvements (ATR, RVOL) reduce losses but cannot flip the strategy to profitable. Ignition event research is the first test of a genuinely new signal type since the re-validation cycle began.
