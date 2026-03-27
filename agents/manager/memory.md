@@ -45,10 +45,10 @@ Items below LC-2025-007 were bulk-approved by PO (2026-03-07 audit handoff). Age
 
 ## LC-2025-014 Phase 3 Exit Research — Key Findings (COMPLETE)
 
-- **Baseline:** ema9_5m_d3 exit produces +38.21% total PnL on graduating trades
+- **Baseline:** ema9_5m_d3 exit produces +38.21% mean PnL on 132 PO-rated Good entries
 - **Guard C (rsi<40 within M=5 bars):** Proven on >50pp decline cluster — +2.16pp improvement, 0/49 hurt
 - **Guard C does NOT generalise:** On 20–50pp cluster, guard harms performance (40/49 hurt trades unclassified)
-- **Phase 3 status:** Entry development complete in scope. Exit design not started. All figures in-sample only.
+- **Phase 3 status:** Exit exploration complete (12 sub-phases: exhaustion signals, guard logic, EMA variants, RSI switches, trailing stops). No validated exit rule for production. All figures in-sample only.
 
 ## Ignition event definition (LC-2025-012)
 

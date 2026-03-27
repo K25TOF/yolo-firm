@@ -88,13 +88,13 @@ Standard filter: `(day_high - day_low) / day_low >= 0.50`. Yields ~5.6% of cache
 450 ticker-days from 1,922 runners surviving: mcap ≥ $10M AND type=CS AND exchange ∈ [XNAS, XNYS, ARCX] AND float_turnover ≥ 0.50x. Float turnover = day_dollar_volume / (free_float × open_price). Natural breakpoint at 0.50x separating genuine momentum from noise. Stored: `analysis/tools/lists/lc025014_multibagger_universe_v1.json`.
 
 ### ORB Definition
-- ORB window: first 15 min of RTH (09:30–09:44 ET, ts_minute 570–584)
-- ORB high = max(bar_high) in ORB window
-- ORB low = min(bar_low) in ORB window
-- **Critical:** minute_of_day ≠ minutes since RTH open. For RTH bars, minute_of_day starts at ~28. ORB exclusion must use `ts_minute < 585`, NOT `minute_of_day < 15`.
+- **V1 (PRIMARY):** 5-min ORB window (09:30–09:34 ET, ts_minute 570–574). ORB high = max(bar_high) in window. Entry after ts_minute ≥ 575.
+- **V2 (RETIRED):** 15-min ORB window (09:30–09:44 ET, ts_minute 570–584). ORB high = max(bar_high) in window. Entry after ts_minute ≥ 585.
+- ORB low = min(bar_low) in respective window
+- **Critical:** minute_of_day ≠ minutes since RTH open. For RTH bars, minute_of_day starts at ~28. V2 exclusion uses `ts_minute < 585`; V1 exclusion uses `ts_minute < 575`.
 
 ### Entry Conditions (Settled)
-1. B0: first bar after 09:45 (ts_minute ≥ 585) where `bar_high ≥ orb_high` AND `vol_ratio ≥ 2.0x`
+1. B0: first bar after ORB window where `bar_close ≥ orb_high` AND `vol_ratio ≥ 2.0x`
 2. B-1 coil: bar before B0 closes no deeper than -4% below ORB high: `(close[B-1] - orb_high) / orb_high ≥ -0.04`
 3. Liquidity gate: dollar volume EMA3 (k=0.5, bars B-2/B-1/B0) ≥ $10K/min at B0
 
@@ -116,11 +116,11 @@ Standard filter: `(day_high - day_low) / day_low >= 0.50`. Yields ~5.6% of cache
 298 rated entries (128 V1 + 170 V2) → 236 after $10K/min liquidity gate.
 - 132G / 104B / ~28N ≈ 56% Good rate after gate (in-sample, unreconciled — see Challenger caveats)
 - Liquidity is a prerequisite filter, not a signal discriminator (Good/Bad ratio unchanged by gate)
-- Entry price = orb_high (for backtesting, entry_price is the ORB high level)
+- Entry price = bar_close[B0] (confirmed execution bias — not transactable; realistic entry is bar_open[B1])
 - **V1 (5-min) is the primary research track going forward.** V2 (15-min) retired — results must be analysed separately, not combined.
 
 ### Key Technical Findings
 - **ORB window bug**: `minute_of_day < 15` excludes pre-market, NOT the ORB window. Fix: `ts_minute < 585`.
 - **Volume ratio at extremes is ambiguous**: both v1 and v2 show VR is not a monotone quality signal. At very high VR (>4x), exhaustion dominates.
 - **Liquidity is neutral**: applying $10K/min gate removes ~21% of entries but does not change Good/Bad ratio — confirms gate is binary prerequisite.
-- **~50% Good rate** on 236 tradeable entries is the current baseline for ORB entry research.
+- **~56% Good rate** on 236 tradeable entries is the commonly cited baseline (in-sample, unreconciled — see Challenger caveats).
