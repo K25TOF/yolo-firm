@@ -1,16 +1,8 @@
 # Python cache
 __pycache__/
 
-# Session logs (operational, not versioned)
-agents/session-log/*.md
-!agents/session-log/README.md
-
-# Review documents (operational, not versioned)
-agents/reviews/*.md
-!agents/reviews/README.md
-
-# Pending memory updates (require PO approval)
-agents/memory-pending.md
+# Pending memory updates (legacy — retired in P1.2)
+# agents/memory-pending.md
 
 # Environment files
 agents/.env
