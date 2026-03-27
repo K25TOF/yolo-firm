@@ -242,6 +242,192 @@ class TestUpdateMemory:
 
         assert result["ok"] is False
 
+    # --- P1.1: Memory versioning tests ---
+
+    def test_backup_created_on_write(self, tmp_path: Path) -> None:
+        """Successful write creates timestamped backup of prior content."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("original content")
+
+        result = update_memory("optimist", "new content", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+        assert result["backup_path"] is not None
+        # Backup contains the ORIGINAL content (before write)
+        backup = Path(result["backup_path"])
+        assert backup.exists()
+        assert backup.read_text() == "original content"
+        # Memory file contains the NEW content
+        assert (agent_dir / "memory.md").read_text() == "new content"
+        # Backup is in the memory-history subdirectory
+        assert backup.parent.name == "memory-history"
+        assert backup.parent.parent == agent_dir
+
+    def test_backup_filename_format(self, tmp_path: Path) -> None:
+        """Backup filename is YYYYMMDD-HHMMSS.md (UTC)."""
+        import re
+
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("old")
+
+        result = update_memory("optimist", "new", agents_dir=agents_dir)
+
+        backup = Path(result["backup_path"])
+        assert re.match(r"\d{8}-\d{6}\.md$", backup.name)
+
+    def test_backup_dir_created_if_missing(self, tmp_path: Path) -> None:
+        """memory-history/ directory created automatically on first write."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("old")
+
+        assert not (agent_dir / "memory-history").exists()
+
+        result = update_memory("optimist", "new", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+        assert (agent_dir / "memory-history").exists()
+
+    def test_no_backup_when_no_prior_file(self, tmp_path: Path) -> None:
+        """First-ever write (no existing memory.md) has no backup to create."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        agent_dir.mkdir(parents=True)
+        # No memory.md exists yet
+
+        result = update_memory("optimist", "first content", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+        assert result["backup_path"] is None
+        assert (agent_dir / "memory.md").read_text() == "first content"
+
+    def test_failed_write_preserves_original(self, tmp_path: Path) -> None:
+        """If write fails, original memory.md and backup both preserved."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("precious content")
+
+        with patch.object(Path, "write_text", side_effect=OSError("disk full")):
+            result = update_memory("optimist", "bad write", agents_dir=agents_dir)
+
+        assert result["ok"] is False
+        assert result["backup_path"] is None
+        assert "disk full" in result["error"]
+        # Original file must be untouched
+        assert (agent_dir / "memory.md").read_text() == "precious content"
+
+    def test_backup_rotation_deletes_old(self, tmp_path: Path) -> None:
+        """Backups older than 30 days are deleted after successful write."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        history_dir = agent_dir / "memory-history"
+        history_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("current")
+
+        # Create an old backup (35 days ago)
+        import os
+        import time
+
+        old_backup = history_dir / "20260220-120000.md"
+        old_backup.write_text("ancient")
+        old_time = time.time() - (35 * 86400)
+        os.utime(old_backup, (old_time, old_time))
+
+        # Create a recent backup (5 days ago)
+        recent_backup = history_dir / "20260322-120000.md"
+        recent_backup.write_text("recent")
+        recent_time = time.time() - (5 * 86400)
+        os.utime(recent_backup, (recent_time, recent_time))
+
+        result = update_memory("optimist", "newest", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+        # Old backup deleted
+        assert not old_backup.exists()
+        # Recent backup preserved
+        assert recent_backup.exists()
+        # New backup created (3 total files: recent + new backup)
+        backups = list(history_dir.glob("*.md"))
+        assert len(backups) == 2  # recent + just-created
+
+    def test_rotation_only_on_success(self, tmp_path: Path) -> None:
+        """Rotation does NOT run when write fails."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        history_dir = agent_dir / "memory-history"
+        history_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("current")
+
+        import os
+        import time
+
+        old_backup = history_dir / "20260220-120000.md"
+        old_backup.write_text("ancient")
+        old_time = time.time() - (35 * 86400)
+        os.utime(old_backup, (old_time, old_time))
+
+        with patch.object(Path, "write_text", side_effect=OSError("disk full")):
+            result = update_memory("optimist", "fail", agents_dir=agents_dir)
+
+        assert result["ok"] is False
+        # Old backup must still exist — rotation did not run
+        assert old_backup.exists()
+
+    def test_rotation_noop_when_no_old_backups(self, tmp_path: Path) -> None:
+        """Rotation is a no-op when all backups are recent."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        history_dir = agent_dir / "memory-history"
+        history_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("current")
+
+        recent = history_dir / "20260325-120000.md"
+        recent.write_text("recent")
+
+        result = update_memory("optimist", "new", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+        assert recent.exists()
+
+    def test_identity_violation_returns_no_backup(self, tmp_path: Path) -> None:
+        """Identity violation returns error with backup_path=None, no files modified."""
+        agents_dir = tmp_path / "agents"
+        agent_dir = agents_dir / "optimist"
+        agent_dir.mkdir(parents=True)
+        (agent_dir / "memory.md").write_text("original")
+
+        result = update_memory(
+            "optimist", "hijack", agents_dir=agents_dir, calling_agent="challenger",
+        )
+
+        assert result["ok"] is False
+        assert result.get("backup_path") is None
+        assert (agent_dir / "memory.md").read_text() == "original"
+        assert not (agent_dir / "memory-history").exists()
+
+    def test_return_value_schema(self, tmp_path: Path) -> None:
+        """Return dict has all required keys: ok, path, backup_path, error."""
+        agents_dir = tmp_path / "agents"
+        (agents_dir / "optimist").mkdir(parents=True)
+        (agents_dir / "optimist" / "memory.md").write_text("old")
+
+        result = update_memory("optimist", "new", agents_dir=agents_dir)
+
+        assert "ok" in result
+        assert "path" in result
+        assert "backup_path" in result
+        assert "error" in result
+        assert result["ok"] is True
+        assert result["error"] is None
+        assert result["path"].endswith("memory.md")
+        assert result["backup_path"] is not None
+
 
 # --- Helpers for momentum filter tests ---
 

@@ -190,13 +190,49 @@ def _write_trades_csv(all_trades: list[dict], results_dir: Path, strategy_id: st
     return path
 
 
+BACKUP_RETENTION_DAYS = 30
+
+
+def _create_backup(memory_path: Path) -> Path | None:
+    """Create a timestamped backup of memory_path in memory-history/.
+
+    Returns the backup path, or None if no file to back up.
+    """
+    if not memory_path.exists():
+        return None
+
+    history_dir = memory_path.parent / "memory-history"
+    history_dir.mkdir(exist_ok=True)
+
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    backup_path = history_dir / f"{timestamp}.md"
+    backup_path.write_text(memory_path.read_text(encoding="utf-8"), encoding="utf-8")
+    return backup_path
+
+
+def _rotate_backups(history_dir: Path) -> None:
+    """Delete backups older than BACKUP_RETENTION_DAYS."""
+    if not history_dir.exists():
+        return
+
+    cutoff = datetime.now(UTC) - timedelta(days=BACKUP_RETENTION_DAYS)
+    cutoff_ts = cutoff.timestamp()
+
+    for backup in history_dir.glob("*.md"):
+        if backup.stat().st_mtime < cutoff_ts:
+            backup.unlink()
+
+
 def update_memory(
     agent: str,
     content: str,
     agents_dir: Path | None = None,
     calling_agent: str | None = None,
 ) -> dict:
-    """Write content to an agent's memory file.
+    """Write content to an agent's memory file with backup and rotation.
+
+    Creates a timestamped backup before overwriting. Rotates backups
+    older than 30 days after a successful write.
 
     Args:
         agent: Target agent name (optimist, challenger, manager).
@@ -205,24 +241,64 @@ def update_memory(
         calling_agent: Identity of the agent making the call (for enforcement).
 
     Returns:
-        Dict with ok=True/False and path or error message.
+        Dict with ok, path, backup_path, and error.
     """
     if agent not in VALID_AGENTS:
-        return {"ok": False, "error": f"Invalid agent: {agent}. Must be one of {sorted(VALID_AGENTS)}"}
+        return {
+            "ok": False,
+            "path": None,
+            "backup_path": None,
+            "error": f"Invalid agent: {agent}. Must be one of {sorted(VALID_AGENTS)}",
+        }
 
     if calling_agent is not None and calling_agent != agent:
-        return {"ok": False, "error": f"Identity mismatch: {calling_agent} cannot write {agent}'s memory"}
+        return {
+            "ok": False,
+            "path": None,
+            "backup_path": None,
+            "error": f"Identity mismatch: {calling_agent} cannot write {agent}'s memory",
+        }
 
     base = agents_dir if agents_dir is not None else AGENTS_DIR
     memory_path = base / agent / "memory.md"
 
+    # Create backup before writing
+    try:
+        backup_path = _create_backup(memory_path)
+    except OSError as e:
+        logger.exception("Failed to create backup for %s", agent)
+        return {
+            "ok": False,
+            "path": str(memory_path),
+            "backup_path": None,
+            "error": f"Backup failed: {e}",
+        }
+
+    # Write new content
     try:
         memory_path.write_text(content, encoding="utf-8")
     except OSError as e:
         logger.exception("Failed to write memory for %s", agent)
-        return {"ok": False, "error": f"Write failed: {e}"}
+        return {
+            "ok": False,
+            "path": str(memory_path),
+            "backup_path": None,
+            "error": f"Write failed: {e}",
+        }
 
-    return {"ok": True, "path": str(memory_path)}
+    # Rotate old backups (only after successful write)
+    history_dir = memory_path.parent / "memory-history"
+    try:
+        _rotate_backups(history_dir)
+    except OSError:
+        logger.warning("Backup rotation failed for %s — non-fatal", agent)
+
+    return {
+        "ok": True,
+        "path": str(memory_path),
+        "backup_path": str(backup_path) if backup_path else None,
+        "error": None,
+    }
 
 
 def run_backtest(config: dict, yolo_repo: Path | None = None) -> dict:
