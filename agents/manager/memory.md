@@ -2,10 +2,10 @@
 
 ## YOLO firm state
 
-- Current phase: Phase 5 — Triple Loop (Learning)
+- Current phase: Phase 8 released (yolo PRD v0.19.0). Agent framework upgrade in progress.
 - Active strategy: vol_filter v2.1.0 (paper, not production ready — EXP-023 verdict)
-- Last experiment: LC-2025-014 — Runner Universe ORB Breakout Research (clean tradeable universe defined, 236 entries)
-- PRD version: v0.13.0
+- Last experiment: LC-2025-015 — Full Audit of ORB Breakout Research (FA1–FA8, 2026-03-27)
+- PRD version: v0.19.0 (yolo app); v0.4.1 (yolo-firm)
 
 ## Open items for PO review
 
@@ -19,14 +19,36 @@ Items below LC-2025-007 were bulk-approved by PO (2026-03-07 audit handoff). Age
 - ~~Engine story: Fix dates="all" resolution~~ — DONE (Story 5.13).
 - **LC-2025-012 (pending PO approval):** Update session history in memory. Record ignition event definition. Note engine capability gaps (rolling-window-of-indicator, bar-body geometry, prior-N-bar-high breakout — four of five ignition conditions unimplementable via BacktestEngine).
 
-## Session history (last 5)
+## Session history (last 5 research + FA audit)
 
-- LC-2025-014 (ORB breakout research): 450-stock multibagger universe (mcap ≥ $10M, float_turnover ≥ 0.50x). ORB entry: first bar after 09:45 with bar_high ≥ ORB high + vol_ratio ≥ 2.0x + B-1 coil within -4%. 298 PO-rated entries (128 v1 + 170 v2). After $10K/min liquidity gate: 236 tradeable entries (~56% Good). Clean tradeable universe defined.
+- LC-2025-014 (ORB breakout research): 450-stock multibagger universe (mcap ≥ $10M, float_turnover ≥ 0.50x). ORB entry: first bar after 09:45 with bar_high ≥ ORB high + vol_ratio ≥ 2.0x + B-1 coil within -4%. 298 PO-rated entries (128 v1 + 170 v2). After $10K/min liquidity gate: 236 tradeable entries (~56% Good). Clean tradeable universe defined. **Phase 3 exit research complete** — see findings below.
 - LC-2025-012 (ignition event research): Script complete, pending VPS execution. Five ignition conditions defined and Analyst-approved. BacktestEngine approximation ruled out (too lossy). PO to run `python analysis/scratch/zz_ignition_phase1_2.py` from project root and return output for Analyst audit.
 - LC-2025-011 (RVOL threshold): volume_ratio_ema threshold 2.0→5.0 on broad universe. +3.51pp WR at 5.0x but all thresholds net negative. Stable +0.035pp WR per 1% trade reduction. RVOL is a working knob but cannot fix core edge. First attempt blocked by dates="all" issue (now fixed in Story 5.13).
 - LC-2025-010 (IDEA-018 test): AND-subset (gap >4% AND vol >5x) = 316 trades, 29.10% WR, +1.12pp above baseline — not a loser archetype. IDEA-018 FAIL — retired. Source findings (EXP-012, EXP-021) confirmed as hand-picked artefacts.
 - LC-2025-009 (ATR isolation): ATR exit on broad universe — +1.63pp WR, +1,186.9pp PnL vs EMA-only. PASS (marginal). Directionally consistent with EXP-016 but smaller magnitude. Does not fix core edge problem.
 - LC-2025-008 (gap accel filter): ema_gap_acceleration < 1.0 on vol_filter — 98.6% trade reduction (6,347→88), WR -4.0pp. Filter structurally incompatible with 3.0% entry. FAIL. Belongs in grinder context only (IDEA-021).
+
+### LC-2025-015 — Full Audit (FA1–FA8, 2026-03-27)
+
+8-session audit of LC-2025-014 ORB breakout research. All sessions used Optimist + Challenger.
+
+| FA | Focus | Verdict | Key Finding | Log |
+|---|---|---|---|---|
+| FA1 | Universe & Entry Signal | ACTIVE | ORB signal discriminates capture quality; borderline statistical significance; OOS validation required | `2026-03-27-audit-fa1-entry-v2.md` |
+| FA2 | Hard Stop | FLAG | Hard stop fires on tail-only subset (avg loser -3.4% vs -10% threshold); sequential optimisation defensible if exit breakdown confirms <10% losses via stop; PO rating lookahead unresolved | `2026-03-27-audit-fa2-stop.md` |
+| FA3 | EMA Exit | INCOMPLETE | Session initiated but not completed — stub file only | `2026-03-27-audit-fa3-ema.md` |
+| FA4 | Exhaustion Signals | FLAG | RSI exit engine anomaly (greater_than holds to EOD); trade count collapse 82→33 unexplained; S1 threshold likely above natural give-back range | `2026-03-27-audit-fa4-exhaustion.md` |
+| FA5 | Guard Logic | DOUBT | Guard C works only in >50pp catastrophic regime, harms 20–50pp; signal stack potentially designed on same 49-trade set (contamination) | `2026-03-27-audit-fa5-guard.md` |
+| FA6 | Entry Quality | FLAG | VR shows opposing signals in V1 vs V2; all four signals require v1/v2 stratification; none production-ready | `2026-03-27-audit-fa6-quality.md` |
+| FA7 | Methodology & Bias | FLAG BLOCKING | All absolute WR/PnL are upper-bound estimates; graduation count pivotal; temporal OOS split required before further work | `2026-03-27-audit-fa7-bias.md` |
+| FA8 | Ideas & Opportunities | ACTIVE | Entry filtering (Gap%+PM Volume) is primary EV lever; Bad label definition is foundational blocker; 56% Good baseline ±3.2pp CI | `2026-03-27-audit-fa8-ideas.md` |
+
+## LC-2025-014 Phase 3 Exit Research — Key Findings (COMPLETE)
+
+- **Baseline:** ema9_5m_d3 exit produces +38.21% total PnL on graduating trades
+- **Guard C (rsi<40 within M=5 bars):** Proven on >50pp decline cluster — +2.16pp improvement, 0/49 hurt
+- **Guard C does NOT generalise:** On 20–50pp cluster, guard harms performance (40/49 hurt trades unclassified)
+- **Phase 3 status:** Entry development complete in scope. Exit design not started. All figures in-sample only.
 
 ## Ignition event definition (LC-2025-012)
 

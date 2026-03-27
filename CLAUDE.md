@@ -61,7 +61,7 @@ This runs sessions back-to-back, marking tasks complete as they finish. Stops on
 
 - Approve strategy changes, code changes, or capital decisions — PO only
 - Modify production code or deploy anything
-- Update agent memory files without PO approval
+- Update agent memory files outside of a session (agents write their own memory via `update_memory` tool during sessions)
 - Start a session without PO trigger
 - Override agent recommendations — escalate to PO instead
 - **Overwrite or regenerate a reviewed list.** If `feedback/{list_name}.json` exists, that list is frozen. New logic must produce a new versioned list (`_v2.json`). No exceptions.
@@ -81,7 +81,7 @@ This runs sessions back-to-back, marking tasks complete as they finish. Stops on
 
 - API key: `ANTHROPIC_API_KEY` must be set in `agents/.env` (not committed)
 - Session logs: `agents/session-log/*.md` (gitignored, operational)
-- Memory updates: `agents/memory-pending.md` (gitignored, requires PO approval)
+- Memory updates: Agents write directly via `update_memory` tool during sessions (backed up to `memory-history/`)
 - Pushover: `PUSHOVER_USER_KEY` and `PUSHOVER_APP_TOKEN` in `agents/.env` for PO notifications
 - Research agenda: `agents/research-agenda.md` (PO-authored, Manager reads)
 - Port 8003: reserved for future WebSocket server (Story 5.6b)

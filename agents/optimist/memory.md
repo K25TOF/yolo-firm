@@ -104,19 +104,20 @@ Standard filter: `(day_high - day_low) / day_low >= 0.50`. Yields ~5.6% of cache
 - EMA3 volume (share count): zero discrimination at full sample
 
 ### Entry Signal Files
-- `analysis/tools/lists/lc025014_orb_confirmed_v1.json` — 128 entries (B0 + B-1 + B+1). **Immutable per policy.**
-- `analysis/tools/lists/lc025014_orb_entries_v2.json` — 171 entries (B0 + B-1 only; B+1 retired). Generated after ORB window bug fix.
+- **V1 (5-min ORB, ts_minute 570–574, 09:30–09:34 ET) — PRIMARY RESEARCH TRACK.** `analysis/tools/lists/lc025014_orb_confirmed_v1.json` — 128 entries (B0 + B-1 + B+1). **Immutable per policy.**
+- **V2 (15-min ORB, ts_minute 570–584, 09:30–09:44 ET) — RETIRED VARIANT.** `analysis/tools/lists/lc025014_orb_entries_v2.json` — 171 entries (B0 + B-1 only; B+1 retired). Generated after ORB window bug fix. Retired: model multiplicity concern (LC-2025-015 FA1), results must not be combined with V1.
 
 ### PO Feedback Summary
-**v1 (128 entries, 54% Good):** 69G / 18N / 41B. Good entries: earlier arrival (10:05 vs 10:31 Bad), higher VR (3.9x vs 3.1x). Bad categories: wrong marker (7), robotic/algo (4), fakeout (1), low volume (2), late entry (4), no reason (24).
+**V1 / 5-min ORB (128 entries, 54% Good) — PRIMARY:** 69G / 18N / 41B. Good entries: earlier arrival (10:05 vs 10:31 Bad), higher VR (3.9x vs 3.1x). Bad categories: wrong marker (7), robotic/algo (4), fakeout (1), low volume (2), late entry (4), no reason (24).
 
-**v2 (170 entries, 48% Good):** 81G / 15N / 74B. Volume ratio inverted: Bad median 4.0x > Good 3.4x (exhaustion signal at extremes). Bad categories: liquidity (5), late entry (2), robotic (1), no reason (63).
+**V2 / 15-min ORB (170 entries, 48% Good) — RETIRED:** 81G / 15N / 74B. Volume ratio inverted: Bad median 4.0x > Good 3.4x (exhaustion signal at extremes). Bad categories: liquidity (5), late entry (2), robotic (1), no reason (63). Retired due to model multiplicity concern (LC-2025-015 FA1).
 
 ### Clean Tradeable Universe (Final State)
-298 rated entries (128 v1 + 170 v2) → 236 after $10K/min liquidity gate.
-- 132G / 104B / ~28N ≈ 56% Good rate after gate
+298 rated entries (128 V1 + 170 V2) → 236 after $10K/min liquidity gate.
+- 132G / 104B / ~28N ≈ 56% Good rate after gate (in-sample, unreconciled — see Challenger caveats)
 - Liquidity is a prerequisite filter, not a signal discriminator (Good/Bad ratio unchanged by gate)
 - Entry price = orb_high (for backtesting, entry_price is the ORB high level)
+- **V1 (5-min) is the primary research track going forward.** V2 (15-min) retired — results must be analysed separately, not combined.
 
 ### Key Technical Findings
 - **ORB window bug**: `minute_of_day < 15` excludes pre-market, NOT the ORB window. Fix: `ts_minute < 585`.

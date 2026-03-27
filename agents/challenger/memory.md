@@ -97,13 +97,13 @@ When two configs share the same universe but differ in trade count, back-calcula
 - Ticker metadata is confirmed current-snapshot (not point-in-time)
 
 **Open blocking items (in priority order):**
-1. Arithmetic reconciliation: raw Good/Bad counts for v1, v2, post-gate 236
-2. Date range and year distribution of 298 entries
-3. 6 prior FA1 blocking issues — list and resolution status
-4. Float data source confirmation
-5. RVOL baseline construction code snippet
-6. signal_bars schema + ORB column map
-7. B0-close to B1-open gap distribution for 236 entries
-8. RTH-only range recalculation (% of 450 stocks passing on RTH bars alone)
-9. Exchange OTC-uplisting cross-reference for 450 stocks
-10. Threshold derivation sequence (VR 2.0, coil -4%: before or after outcome analysis?)
+1. Arithmetic reconciliation: raw Good/Bad counts for v1, v2, post-gate 236 *(source: FA4 — `2026-03-27-audit-fa4-exhaustion.md`, Q4a; also FA1 — `2026-03-27-audit-fa1-entry-v2.md`)*
+2. Date range and year distribution of 298 entries *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q4c)*
+3. 6 prior FA1 blocking issues — list and resolution status *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q1b + consolidated table)*
+4. Float data source confirmation *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q1b + Q3e)*
+5. RVOL baseline construction code snippet *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q3b)*
+6. signal_bars schema + ORB column map *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q3c)*
+7. B0-close to B1-open gap distribution for 236 entries *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q1e)*
+8. RTH-only range recalculation (% of 450 stocks passing on RTH bars alone) *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q1a)*
+9. Exchange OTC-uplisting cross-reference for 450 stocks *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q3e)*
+10. Threshold derivation sequence (VR 2.0, coil -4%: before or after outcome analysis?) *(source: FA1 — `2026-03-27-audit-fa1-entry-v2.md`, Q1d)*
