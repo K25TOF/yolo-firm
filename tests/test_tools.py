@@ -822,3 +822,84 @@ class TestDatesAll:
         run_backtest(config, yolo_repo=tmp_path)
 
         assert mock_run.call_count == 1
+
+
+class TestStatisticianAgent:
+    """Tests for statistician agent integration."""
+
+    def test_statistician_in_valid_agents(self) -> None:
+        from tools import VALID_AGENTS
+
+        assert "statistician" in VALID_AGENTS
+
+    def test_update_memory_works_for_statistician(self, tmp_path: Path) -> None:
+        agents_dir = tmp_path / "agents"
+        (agents_dir / "statistician").mkdir(parents=True)
+
+        result = update_memory("statistician", "# Stats memory\n- fact 1", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+        written = (agents_dir / "statistician" / "memory.md").read_text()
+        assert "Stats memory" in written
+
+    def test_statistician_gets_update_memory_only(self) -> None:
+        from invoke import get_agent_tools
+
+        tools = get_agent_tools("statistician")
+        tool_names = [t["name"] for t in tools]
+        assert "update_memory" in tool_names
+        assert "run_backtest" not in tool_names
+
+    def test_statistician_context_files_exist(self) -> None:
+        agents_dir = Path(__file__).parent.parent / "agents"
+        stat_dir = agents_dir / "statistician"
+        assert (stat_dir / "system-prompt.md").is_file()
+        assert (stat_dir / "context-manifest.md").is_file()
+        assert (stat_dir / "memory.md").is_file()
+
+
+class TestExecutionRealistAgent:
+    """Tests for execution-realist agent integration."""
+
+    def test_execution_realist_in_valid_agents(self) -> None:
+        from tools import VALID_AGENTS
+
+        assert "execution-realist" in VALID_AGENTS
+
+    def test_update_memory_works_for_execution_realist(self, tmp_path: Path) -> None:
+        agents_dir = tmp_path / "agents"
+        (agents_dir / "execution-realist").mkdir(parents=True)
+
+        result = update_memory(
+            "execution-realist", "# Exec memory\n- constraint 1", agents_dir=agents_dir,
+        )
+
+        assert result["ok"] is True
+        written = (agents_dir / "execution-realist" / "memory.md").read_text()
+        assert "constraint 1" in written
+
+    def test_execution_realist_identity_enforced(self, tmp_path: Path) -> None:
+        agents_dir = tmp_path / "agents"
+        (agents_dir / "optimist").mkdir(parents=True)
+
+        result = update_memory(
+            "optimist", "content", agents_dir=agents_dir, calling_agent="execution-realist",
+        )
+
+        assert result["ok"] is False
+
+    def test_execution_realist_gets_update_memory_only(self) -> None:
+        from invoke import get_agent_tools
+
+        tools = get_agent_tools("execution-realist")
+        tool_names = [t["name"] for t in tools]
+        assert "update_memory" in tool_names
+        assert "run_backtest" not in tool_names
+
+    def test_execution_realist_context_files_exist(self) -> None:
+        agents_dir = Path(__file__).parent.parent / "agents"
+        agent_dir = agents_dir / "execution-realist"
+        assert (agent_dir / "system-prompt.md").is_file()
+        assert (agent_dir / "context-manifest.md").is_file()
+        assert (agent_dir / "memory.md").is_file()
+        assert (agent_dir / "constraints.md").is_file()

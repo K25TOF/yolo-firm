@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 AGENTS_DIR = Path(__file__).parent
 MIN_TRADE_GATE = 50
 MOMENTUM_THRESHOLD = 0.50
-VALID_AGENTS = {"optimist", "challenger", "manager"}
+VALID_AGENTS = {"optimist", "challenger", "manager", "statistician", "execution-realist"}
 
 
 def resolve_yolo_repo() -> Path:

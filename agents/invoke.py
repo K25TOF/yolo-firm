@@ -263,7 +263,7 @@ def _update_memory_tool_def() -> dict:
             "properties": {
                 "agent": {
                     "type": "string",
-                    "enum": ["optimist", "challenger", "manager"],
+                    "enum": ["optimist", "challenger", "manager", "statistician", "execution-realist"],
                     "description": "Your agent name (must match your identity).",
                 },
                 "content": {
@@ -280,7 +280,7 @@ def get_agent_tools(agent_name: str) -> list[dict]:
     """Return tool definitions for a given agent.
 
     Manager gets: run_backtest + update_memory.
-    Optimist and Challenger get: update_memory only.
+    All other agents get: update_memory only.
     """
     memory_tool = _update_memory_tool_def()
     if agent_name == "manager":
@@ -291,8 +291,11 @@ def get_agent_tools(agent_name: str) -> list[dict]:
 def main() -> None:
     """CLI entry point for single-agent invocation."""
     parser = argparse.ArgumentParser(description="Invoke a single YOLO Org Learning agent.")
-    parser.add_argument("--agent", required=True, choices=["manager", "optimist", "challenger"],
-                        help="Agent to invoke")
+    parser.add_argument(
+        "--agent", required=True,
+        choices=["manager", "optimist", "challenger", "statistician", "execution-realist"],
+        help="Agent to invoke",
+    )
     parser.add_argument("--message", required=True, help="Message to send to the agent")
     parser.add_argument("--model", default="claude-haiku-4-5-20251001",
                         help="Anthropic model ID (default: claude-haiku-4-5-20251001)")

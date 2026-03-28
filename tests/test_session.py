@@ -656,6 +656,19 @@ class TestParseNextAgent:
         from session import _parse_next_agent
         assert _parse_next_agent("[NEXT: hacker]") is None
 
+    def test_extracts_statistician(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("[NEXT: statistician]") == "statistician"
+
+    def test_extracts_execution_realist(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("[NEXT: execution-realist]") == "execution-realist"
+
+    def test_new_agents_in_valid_agents(self) -> None:
+        from session import VALID_AGENTS
+        assert "statistician" in VALID_AGENTS
+        assert "execution-realist" in VALID_AGENTS
+
 
 class TestDynamicSession:
     """Tests for dynamic routing session loop."""
