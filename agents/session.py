@@ -50,7 +50,7 @@ FIRM_REPO = AGENTS_DIR.parent
 YOLO_REPO = FIRM_REPO.parent / "yolo"
 INTERRUPT_FLAG = AGENTS_DIR / "session-interrupt.flag"
 
-VALID_AGENTS = {"optimist", "challenger", "manager", "statistician", "execution-realist"}
+VALID_AGENTS = {"optimist", "challenger", "manager", "statistician", "execution-realist", "scout"}
 _NEXT_RE = re.compile(r"\[NEXT:\s*([\w-]+)\s*\]", re.IGNORECASE)
 _BLOCKER_RE = re.compile(r"\[BLOCKER:\s*(.+?)\s*\]", re.IGNORECASE)
 _SCOPE_BLOCKING_RE = re.compile(r"\[SCOPE REQUEST BLOCKING:\s*(.+?)\s*\]", re.IGNORECASE)

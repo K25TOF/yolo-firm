@@ -664,10 +664,15 @@ class TestParseNextAgent:
         from session import _parse_next_agent
         assert _parse_next_agent("[NEXT: execution-realist]") == "execution-realist"
 
-    def test_new_agents_in_valid_agents(self) -> None:
+    def test_extracts_scout(self) -> None:
+        from session import _parse_next_agent
+        assert _parse_next_agent("[NEXT: scout]") == "scout"
+
+    def test_all_agents_in_valid_agents(self) -> None:
         from session import VALID_AGENTS
         assert "statistician" in VALID_AGENTS
         assert "execution-realist" in VALID_AGENTS
+        assert "scout" in VALID_AGENTS
 
 
 class TestDynamicSession:

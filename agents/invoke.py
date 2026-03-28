@@ -263,7 +263,7 @@ def _update_memory_tool_def() -> dict:
             "properties": {
                 "agent": {
                     "type": "string",
-                    "enum": ["optimist", "challenger", "manager", "statistician", "execution-realist"],
+                    "enum": ["optimist", "challenger", "manager", "statistician", "execution-realist", "scout"],
                     "description": "Your agent name (must match your identity).",
                 },
                 "content": {
@@ -276,15 +276,26 @@ def _update_memory_tool_def() -> dict:
     }
 
 
+def _web_search_tool_def() -> dict:
+    """Return Anthropic server-side web search tool definition."""
+    return {
+        "type": "web_search_20250305",
+        "name": "web_search",
+    }
+
+
 def get_agent_tools(agent_name: str) -> list[dict]:
     """Return tool definitions for a given agent.
 
     Manager gets: run_backtest + update_memory.
+    Scout gets: web_search + update_memory.
     All other agents get: update_memory only.
     """
     memory_tool = _update_memory_tool_def()
     if agent_name == "manager":
         return get_engineer_tools() + [memory_tool]
+    if agent_name == "scout":
+        return [_web_search_tool_def(), memory_tool]
     return [memory_tool]
 
 
@@ -293,7 +304,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Invoke a single YOLO Org Learning agent.")
     parser.add_argument(
         "--agent", required=True,
-        choices=["manager", "optimist", "challenger", "statistician", "execution-realist"],
+        choices=["manager", "optimist", "challenger", "statistician", "execution-realist", "scout"],
         help="Agent to invoke",
     )
     parser.add_argument("--message", required=True, help="Message to send to the agent")

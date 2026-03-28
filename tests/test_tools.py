@@ -903,3 +903,51 @@ class TestExecutionRealistAgent:
         assert (agent_dir / "context-manifest.md").is_file()
         assert (agent_dir / "memory.md").is_file()
         assert (agent_dir / "constraints.md").is_file()
+
+
+class TestScoutAgent:
+    """Tests for scout agent integration."""
+
+    def test_scout_in_valid_agents(self) -> None:
+        from tools import VALID_AGENTS
+
+        assert "scout" in VALID_AGENTS
+
+    def test_update_memory_works_for_scout(self, tmp_path: Path) -> None:
+        agents_dir = tmp_path / "agents"
+        (agents_dir / "scout").mkdir(parents=True)
+
+        result = update_memory("scout", "# Scout memory\n- searched ORB", agents_dir=agents_dir)
+
+        assert result["ok"] is True
+
+    def test_scout_gets_web_search_and_update_memory(self) -> None:
+        from invoke import get_agent_tools
+
+        tools = get_agent_tools("scout")
+        tool_names = [t["name"] for t in tools]
+        assert "web_search" in tool_names
+        assert "update_memory" in tool_names
+        assert "run_backtest" not in tool_names
+
+    def test_scout_web_search_is_server_side_tool(self) -> None:
+        from invoke import get_agent_tools
+
+        tools = get_agent_tools("scout")
+        web_search = [t for t in tools if t.get("name") == "web_search"][0]
+        assert web_search["type"] == "web_search_20250305"
+
+    def test_other_agents_do_not_get_web_search(self) -> None:
+        from invoke import get_agent_tools
+
+        for agent in ("manager", "optimist", "challenger", "statistician", "execution-realist"):
+            tools = get_agent_tools(agent)
+            tool_names = [t.get("name") for t in tools]
+            assert "web_search" not in tool_names, f"{agent} should not have web_search"
+
+    def test_scout_context_files_exist(self) -> None:
+        agents_dir = Path(__file__).parent.parent / "agents"
+        scout_dir = agents_dir / "scout"
+        assert (scout_dir / "system-prompt.md").is_file()
+        assert (scout_dir / "context-manifest.md").is_file()
+        assert (scout_dir / "memory.md").is_file()
