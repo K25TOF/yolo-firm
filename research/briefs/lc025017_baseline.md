@@ -23,7 +23,10 @@ conditional, what has failed, and what remains unknown. All future research star
   (effect is dramatically underestimated by hand-picked studies)
 - **Mechanism:** First entry catches the initial volume spike which often immediately reverses;
   second signal confirms the ticker is a real runner
-- **Production status:** Validated. Should be included in any live strategy.
+- **Production status:** Validated on scanner/vol_filter universe. NOT validated on ORB universe.
+  ORB entries are structurally different (breakout from fixed level, typically once per day
+  per ticker vs vol_filter signals which can fire repeatedly). Skip-first may not apply to ORB
+  entries — requires explicit testing before assuming transferability.
 
 ### 1.2 News Presence as Mild Positive Signal
 - **Finding:** Trades with Benzinga news coverage show 33.3% WR vs 24.3% WR without news

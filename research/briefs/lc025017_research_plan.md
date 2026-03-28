@@ -16,6 +16,29 @@ These unlock the more expensive engine runs (D3, D4). D5 deprioritised — under
 
 ---
 
+## Phase 0 — Pre-Check (Before All Other Research)
+
+### D0 — Graduation Count
+
+**Question:** Of 132 Good-rated entries, how many held to a natural exit signal vs EOD force-close?
+
+**Why first:** This determines whether exit or entry research has higher EV. If >50% of Good
+entries are force-closed at EOD, the dominant "exit" is market close — exit optimisation
+research (D4) drops in priority and "how to extract value before 4pm" becomes the real question.
+
+**Method:**
+1. For each of 132 Good entries: walk 1-min bars from entry to EOD
+2. Check if ema9_5m_d3 exit triggered before RTH close (16:00 ET)
+3. Report: N held to exit signal vs N force-closed at EOD
+4. For force-closed subset: report mean PnL at force-close vs mean peak PnL during hold
+
+**Population:** 132 Good entries
+**Dependencies:** None
+**Complexity:** Low (30 minutes)
+**Success criterion:** Descriptive — no threshold. Result determines D4 priority.
+
+---
+
 ## Phase 1 — Data Queries (No Engine Required)
 
 ### D2 — Mechanical Bad Label (FIRST PRIORITY)
@@ -125,13 +148,16 @@ the LC-2025-014 research window.
 no finding can be cited as production-ready.
 
 **Method:**
-1. Determine LC-2025-014 date range; define OOS window (later dates)
+1. Temporal split: use May–Dec 2025 as design set, Jan–Mar 2026 as OOS window.
+   The full entry list has 1,845 entries in Jan–Mar 2026 (before ORB/quality filters).
+   After multibagger + ORB filtering, this should yield well above n>=95 OOS entries.
 2. Run ORB signal detection on OOS dates using BacktestEngine (ib_high entry)
 3. Apply mechanical Bad label from D2 to classify OOS entries automatically
 4. PO spot-checks n>=50 entries (NOT 20 — Statistician requirement) to confirm label accuracy OOS
 5. Report OOS Good rate + 95% CI
 
-**Population:** Target n>=95 OOS entries (Statistician minimum for detecting 10pp degradation from 56%)
+**Population:** Target n>=95 OOS entries (Statistician minimum for detecting 10pp degradation from 56%).
+Data is available — no need to wait for new data to accumulate.
 
 **Statistical requirements:**
 - n>=95 OOS entries for 80% power at alpha=0.05 to detect 10pp degradation
@@ -220,16 +246,6 @@ over time." Do not use results to change production stop threshold without n>=10
 
 ---
 
-## Pre-Check Before All Research
-
-**Graduation count:** Before proceeding with any direction, establish:
-- Of 132 Good-rated entries: how many held to natural exit signal vs EOD force-close?
-- If >50% are force-closed, exit optimisation (D4) is low priority — the dominant "exit" is market close
-
-This is a 30-minute data query that determines whether exit or entry research has higher EV.
-
----
-
 ## Second-Look Candidates (Not Active Directions)
 
 | Candidate | Source | Revisit When |
@@ -244,11 +260,13 @@ This is a 30-minute data query that determines whether exit or entry research ha
 ## Execution Sequence
 
 ```
-IMMEDIATE (parallel):
+FIRST (before everything):
+  D0 (Graduation count) ← determines D4 priority (30 min)
+
+THEN (parallel):
   D2 (Bad Label)        ← FIRST PRIORITY, unlocks D3
   D1A (Gap%)            ← parallel with D2, zero dependency
   D6 pre-check          ← parallel, exploratory
-  Graduation count      ← pre-check for D4 priority
 
 AFTER D2 COMPLETE:
   D3 (OOS Validation)   ← requires D2 + n>=95 OOS entries
