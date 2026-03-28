@@ -24,6 +24,7 @@ Documents loaded into Manager context at session start.
 | Document | Path | Purpose |
 |---|---|---|
 | Agents README | `agents/README.md` | Session protocol and agent boundaries |
+| Session Index | `agents/session-log/index.json` | Queryable history of all research sessions |
 
 ## Agent Memory (yolo-firm/agents/manager/)
 

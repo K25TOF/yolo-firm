@@ -34,6 +34,7 @@ from invoke import (
     write_session_log,
 )
 from notify import send_pushover
+from session_index import append_entry, check_stale_documents, count_blockers, count_flags
 from tools import run_backtest, update_memory
 
 DEFAULT_MODEL = "claude-haiku-4-5-20251001"
@@ -646,6 +647,23 @@ def run_session(
         "content": f"Session {session_id} started",
     })
 
+    # Check for stale context documents
+    _, manager_docs, _, _ = _get_context("manager")
+    doc_paths = []
+    for doc in manager_docs:
+        rel_path = doc.get("path", "")
+        # Resolve relative manifest paths to absolute
+        for base in (firm_repo, yolo_repo):
+            candidate = base / rel_path
+            if candidate.exists():
+                doc_paths.append(candidate)
+                break
+    stale_docs = check_stale_documents(doc_paths)
+    if stale_docs:
+        print("\n⚠ Stale context documents detected:")
+        for sd in stale_docs:
+            print(f"  STALE (last modified: {sd['last_modified']}): {sd['path']}")
+
     # Build opening message
     if open_mode:
         open_message = (
@@ -807,6 +825,29 @@ def run_session(
             pass
 
     print("\n=== SESSION COMPLETE ===")
+
+    # Append to session index
+    try:
+        transcript = build_transcript(tracker.turns)
+        agents_used = sorted({t.agent for t in tracker.turns})
+        q_summary = question or "Open-mode session"
+        v_summary = tracker.turns[-1].response[:500] if tracker.turns else ""
+        index_path = log_dir / "index.json"
+        append_entry(
+            index_path=index_path,
+            session_id=session_id,
+            date=datetime.now(UTC).isoformat(),
+            agents=agents_used,
+            question_summary=q_summary,
+            verdict_summary=v_summary,
+            flag_count=count_flags(transcript),
+            blocker_count=count_blockers(transcript),
+            status=outcome,
+            log_path=str(_log_path) if _log_path else "",
+        )
+        print(f"Index: {index_path}")
+    except Exception as exc:
+        print(f"[warn] Failed to update session index: {exc}")
 
     elapsed = time.monotonic() - start_time
     cost = tracker.total_input * COST_PER_INPUT + tracker.total_output * COST_PER_OUTPUT

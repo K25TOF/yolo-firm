@@ -384,6 +384,27 @@ def main() -> None:
         response=response_text,
     )
 
+    # Append to session index (only when explicit --session-id provided)
+    if args.session_id:
+        try:
+            from session_index import append_entry, count_blockers, count_flags
+
+            index_path = log_dir / "index.json"
+            append_entry(
+                index_path=index_path,
+                session_id=session_id,
+                date=datetime.now(UTC).isoformat(),
+                agents=[args.agent],
+                question_summary=args.message[:200],
+                verdict_summary=response_text[:500],
+                flag_count=count_flags(response_text),
+                blocker_count=count_blockers(response_text),
+                status="complete",
+                log_path=str(log_dir / f"{datetime.now(UTC).strftime('%Y-%m-%d')}-{session_id}.md"),
+            )
+        except Exception:
+            pass  # Index append is non-fatal
+
     # Print response
     print(response_text)
 
