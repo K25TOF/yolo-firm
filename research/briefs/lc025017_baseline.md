@@ -25,26 +25,14 @@ conditional, what has failed, and what remains unknown. All future research star
   second signal confirms the ticker is a real runner
 - **Production status:** Validated. Should be included in any live strategy.
 
-### 1.2 ORB Entry Signal — 56% Good Rate (In-Sample)
-- **Finding:** ORB breakout entry (first bar after 09:45 with bar_high ≥ ib_high + vol_ratio
-  ≥ 2.0x + B-1 coil ≤ -4%) produces ~56% Good entries on the multibagger universe
-- **Evidence:** LC-2025-014 — 298 PO-rated entries (128 v1 + 170 v2); 236 tradeable after
-  $10K/min liquidity gate; ~56% Good (PO visual rating)
-- **Scope:** 450-stock multibagger universe (mcap ≥ $10M, float_turnover ≥ 0.50x,
-  intraday range ≥ 50%). RTH only.
-- **Caveats:** IN-SAMPLE ONLY. OOS validation required before production. Borderline
-  statistical significance. 95% CI on 56% ≈ [49%, 63%]. PO rating introduces
-  lookahead — true Good rate may be lower.
-- **Production status:** CONDITIONAL. Cannot deploy without OOS validation (D3).
-
-### 1.3 News Presence as Mild Positive Signal
+### 1.2 News Presence as Mild Positive Signal
 - **Finding:** Trades with Benzinga news coverage show 33.3% WR vs 24.3% WR without news
   (+9pp). No-news trades are 85.8% losers (75.7% loss rate vs 66.7% baseline).
 - **Evidence:** EXP-024 — 522 trades, 252 tickers, news joined on ticker+date
 - **Scope:** vol_filter strategy universe. May generalise; not validated on ORB universe.
 - **Production status:** Mild supporting signal. Not sufficient as standalone filter.
 
-### 1.4 Vol_Filter Has No Edge on Broad Momentum Universe
+### 1.3 Vol_Filter Has No Edge on Broad Momentum Universe
 - **Finding:** vol_filter v2.1.0 (EMA gap >3.0%, volume_ratio_ema ≥ 2.0) has no
   statistically significant edge on the broad momentum universe (50% intraday range filter)
 - **Evidence:** Six Class A re-runs (LC-2025-005/006) — all produced negative PnL on the
@@ -58,7 +46,19 @@ conditional, what has failed, and what remains unknown. All future research star
 
 ## Category 2 — CONDITIONAL (promising but requires further validation)
 
-### 2.1 ATR Exit (2.0× ATR(14) Trailing Stop)
+### 2.1 ORB Entry Signal — 56% Good Rate (In-Sample)
+- **Finding:** ORB breakout entry (first bar after ORB window with bar_close ≥ orb_high + vol_ratio
+  ≥ 2.0x + B-1 coil ≤ -4%) produces ~56% Good entries on the multibagger universe
+- **Evidence:** LC-2025-014 — 298 PO-rated entries (128 v1 + 170 v2); 236 tradeable after
+  $10K/min liquidity gate; ~56% Good (PO visual rating)
+- **Scope:** 450-stock multibagger universe (mcap ≥ $10M, float_turnover ≥ 0.50x,
+  intraday range ≥ 100%). RTH only.
+- **Caveats:** IN-SAMPLE ONLY. OOS validation required before production. Borderline
+  statistical significance. 95% CI on 56% ≈ [49%, 63%]. PO rating introduces
+  lookahead — true Good rate may be lower.
+- **Production status:** CONDITIONAL. Cannot deploy without OOS validation (D3).
+
+### 2.2 ATR Exit (2.0× ATR(14) Trailing Stop)
 - **Finding:** ATR trailing stop combined with EMA exit marginally improves results
 - **Evidence:** EXP-016 (+9.9pp PnL, +3pp WR on 82 hand-picked trades); LC-2025-009
   (+1.63pp WR on broad universe)
@@ -66,7 +66,7 @@ conditional, what has failed, and what remains unknown. All future research star
   fires on sustained moves). Effect is real but does not fix core edge problem.
 - **Production status:** Include as supplementary exit rule. Do not rely on as primary edge.
 
-### 2.2 Hard Stop (−10% from Entry)
+### 2.3 Hard Stop (−10% from Entry)
 - **Finding:** Hard stop fires rarely (avg loser is −3.4%, well below −10% threshold);
   threshold is defensible as tail protection
 - **Evidence:** FA2 — fires only on catastrophic tail subset; does not distort typical exits
@@ -75,7 +75,7 @@ conditional, what has failed, and what remains unknown. All future research star
 - **Production status:** Include as tail risk protection. Threshold selection requires
   larger sample before optimising.
 
-### 2.3 Guard C (RSI<40 within 5 bars of entry)
+### 2.4 Guard C (RSI<40 within 5 bars of entry)
 - **Finding:** Guard C improves outcomes on >50pp catastrophic decline cluster only
   (+2.16pp, 0/49 hurt)
 - **Evidence:** FA5 — proven on >50pp subset; HARMS 20–50pp subset (40/49 hurt)
@@ -84,7 +84,7 @@ conditional, what has failed, and what remains unknown. All future research star
 - **Production status:** Do NOT deploy as general exit rule. Consider only for
   catastrophic-decline detection if that regime can be identified at entry time.
 
-### 2.4 ORB B-1 Coil Filter (≤ −4% below ORB high at B-1)
+### 2.5 ORB B-1 Coil Filter (≤ −4% below ORB high at B-1)
 - **Finding:** Requiring B-1 to be near but below ORB high appears to improve entry quality
 - **Evidence:** FA1 — ORB signal discriminates capture quality; borderline statistical
   significance
@@ -136,7 +136,8 @@ conditional, what has failed, and what remains unknown. All future research star
 ## Summary Statement
 
 The research programme has established one proven entry edge (skip-first on scanner
-universe), one conditional entry signal (ORB at 56% Good in-sample), and confirmed that
+universe, not yet validated on ORB universe), one conditional entry signal (ORB at 56%
+Good in-sample, unvalidated OOS), and confirmed that
 vol_filter has no edge on the broad momentum universe. The primary gap is a scalable,
 mechanical method for labelling entry quality (Bad label) and an OOS validation of the
 ORB signal. Exit research has been extensive but has not produced a validated production-
