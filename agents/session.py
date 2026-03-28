@@ -28,7 +28,6 @@ import re
 
 from invoke import (
     build_prompt,
-    extract_memory_update,
     get_agent_tools,
     load_context,
     parse_context_manifest,
@@ -91,7 +90,6 @@ class TurnResult:
     response: str
     input_tokens: int
     output_tokens: int
-    memory_update: str | None
 
 
 @dataclass
@@ -286,15 +284,12 @@ def invoke_agent(
     for block in api_response.content:
         if hasattr(block, "text"):
             response_text += block.text
-    memory_upd = extract_memory_update(response_text)
-
     return TurnResult(
         agent=agent,
         message=message,
         response=response_text,
         input_tokens=total_in,
         output_tokens=total_out,
-        memory_update=memory_upd,
     )
 
 
@@ -354,7 +349,6 @@ def invoke_agent_streaming(
 
     final = stream.get_final_message()
     response_text = final.content[0].text
-    memory_upd = extract_memory_update(response_text)
 
     # Send turn cost
     in_tok = final.usage.input_tokens
@@ -371,7 +365,6 @@ def invoke_agent_streaming(
         response=response_text,
         input_tokens=in_tok,
         output_tokens=out_tok,
-        memory_update=memory_upd,
     )
 
 
@@ -541,7 +534,6 @@ def run_session(
 
     tracker = TokenTracker()
     _tracker = tracker
-    memory_updates: list[tuple[str, str]] = []
 
     # --- DRY RUN MODE ---
     if dry_run:
@@ -713,9 +705,6 @@ def run_session(
 
         print_turn(turn, tracker, label)
 
-        if turn.memory_update:
-            memory_updates.append((current_agent, turn.memory_update))
-
         # --- ROUTING LOGIC ---
         if current_agent == "manager":
             # Check for blocker tag
@@ -801,19 +790,6 @@ def run_session(
     print(f"\nSession ID: {session_id}")
     print(f"Log: {_log_path}")
     print(f"Turns: {len(tracker.turns)}")
-
-    if memory_updates:
-        pending_path = agents_dir / "memory-pending.md"
-        with open(pending_path, "a") as f:
-            for agent_name, update in memory_updates:
-                f.write(f"\n## {agent_name.title()} — {session_id}\n\n{update}\n")
-        print(f"\nMemory updates flagged: {len(memory_updates)}")
-        for agent_name, update in memory_updates:
-            preview = update.split("\n")[0][:60]
-            print(f"  - {agent_name.title()}: {preview}")
-        print(f"  → {pending_path}")
-    else:
-        print("\nNo memory updates flagged.")
 
     # Clean up interrupt flag
     INTERRUPT_FLAG.unlink(missing_ok=True)

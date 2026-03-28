@@ -48,22 +48,22 @@ class TestTokenTracker:
     def test_tracks_single_turn(self) -> None:
         tracker = TokenTracker()
         tracker.turns.append(
-            TurnResult("manager", "q", "r", 100, 50, None),
+            TurnResult("manager", "q", "r", 100, 50),
         )
         assert tracker.total_input == 100
         assert tracker.total_output == 50
 
     def test_accumulates_multiple_turns(self) -> None:
         tracker = TokenTracker()
-        tracker.turns.append(TurnResult("manager", "q1", "r1", 100, 50, None))
-        tracker.turns.append(TurnResult("optimist", "q2", "r2", 200, 80, None))
+        tracker.turns.append(TurnResult("manager", "q1", "r1", 100, 50))
+        tracker.turns.append(TurnResult("optimist", "q2", "r2", 200, 80))
         assert tracker.total_input == 300
         assert tracker.total_output == 130
 
     def test_summary_includes_per_turn_breakdown(self) -> None:
         tracker = TokenTracker()
-        tracker.turns.append(TurnResult("manager", "q", "r", 100, 50, None))
-        tracker.turns.append(TurnResult("optimist", "q", "r", 200, 80, None))
+        tracker.turns.append(TurnResult("manager", "q", "r", 100, 50))
+        tracker.turns.append(TurnResult("optimist", "q", "r", 200, 80))
         summary = tracker.summary()
         assert "manager" in summary.lower()
         assert "optimist" in summary.lower()
@@ -72,7 +72,7 @@ class TestTokenTracker:
 
     def test_summary_includes_cost_estimate(self) -> None:
         tracker = TokenTracker()
-        tracker.turns.append(TurnResult("manager", "q", "r", 1_000_000, 200_000, None))
+        tracker.turns.append(TurnResult("manager", "q", "r", 1_000_000, 200_000))
         summary = tracker.summary()
         assert "$" in summary
 
@@ -84,15 +84,15 @@ class TestBuildTranscript:
         assert build_transcript([]) == ""
 
     def test_single_turn_formats_correctly(self) -> None:
-        turns = [TurnResult("manager", "Open session", "Session opened.", 100, 50, None)]
+        turns = [TurnResult("manager", "Open session", "Session opened.", 100, 50)]
         transcript = build_transcript(turns)
         assert "Manager" in transcript
         assert "Session opened." in transcript
 
     def test_multiple_turns_in_order(self) -> None:
         turns = [
-            TurnResult("manager", "Open", "Opened.", 100, 50, None),
-            TurnResult("optimist", "Question", "Analysis.", 200, 80, None),
+            TurnResult("manager", "Open", "Opened.", 100, 50),
+            TurnResult("optimist", "Question", "Analysis.", 200, 80),
         ]
         transcript = build_transcript(turns)
         manager_pos = transcript.index("Manager")
@@ -100,7 +100,7 @@ class TestBuildTranscript:
         assert manager_pos < optimist_pos
 
     def test_excludes_token_counts_from_transcript(self) -> None:
-        turns = [TurnResult("manager", "q", "r", 12345, 67890, None)]
+        turns = [TurnResult("manager", "q", "r", 12345, 67890)]
         transcript = build_transcript(turns)
         assert "12345" not in transcript
         assert "67890" not in transcript
@@ -327,16 +327,15 @@ class TestRunSession:
 
     @patch("session.ensure_server_running", return_value=False)
     @patch("session.create_client")
-    def test_memory_updates_collected(
+    def test_no_pending_file_created(
         self, mock_create: MagicMock, mock_ensure: MagicMock, session_env: dict,
     ) -> None:
+        """Session end does not create memory-pending.md (retired in P1.2)."""
         mock_client = MagicMock()
         mock_create.return_value = mock_client
         mock_client.messages.create.side_effect = [
             self._mock_api_response("Manager opens. [NEXT: optimist]"),
-            self._mock_api_response(
-                "Analysis.\n\n[MEMORY UPDATE]\n- New finding: X\n",
-            ),
+            self._mock_api_response("Analysis with findings."),
             self._mock_api_response("Manager closes. [SESSION_COMPLETE]"),
         ]
 
@@ -347,15 +346,13 @@ class TestRunSession:
                 question="Test",
                 open_mode=False,
                 model="claude-haiku-4-5-20251001",
-                session_id="memory-test",
+                session_id="no-pending-test",
                 dry_run=False,
             )
 
-        # Verify memory-pending.md was written
+        # Verify no memory-pending.md was created
         pending = session_env["agents_dir"] / "memory-pending.md"
-        assert pending.exists()
-        content = pending.read_text()
-        assert "New finding: X" in content
+        assert not pending.exists()
 
 
 class TestServerLifecycle:

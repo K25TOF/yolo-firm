@@ -127,30 +127,6 @@ def write_session_log(
     return log_file
 
 
-def extract_memory_update(response: str) -> str | None:
-    """Extract [MEMORY UPDATE] section from agent response.
-
-    Returns the memory update content, or None if no update found.
-    """
-    marker = "[MEMORY UPDATE]"
-    idx = response.find(marker)
-    if idx == -1:
-        return None
-
-    # Extract everything after the marker
-    after = response[idx + len(marker):]
-
-    # Find the end — next section header (##) or end of string
-    lines = after.splitlines()
-    result_lines: list[str] = []
-    for line in lines:
-        if line.startswith("## ") or line.startswith("# "):
-            break
-        result_lines.append(line)
-
-    content = "\n".join(result_lines).strip()
-    return content if content else None
-
 
 def build_prompt(
     system_prompt: str,
@@ -407,14 +383,6 @@ def main() -> None:
         message=args.message,
         response=response_text,
     )
-
-    # Check for memory updates
-    memory_update = extract_memory_update(response_text)
-    if memory_update:
-        pending_path = agents_dir / "memory-pending.md"
-        with open(pending_path, "a") as f:
-            f.write(f"\n## {args.agent.title()} — {session_id}\n\n{memory_update}\n")
-        print(f"[MEMORY] Update pending PO approval → {pending_path}")
 
     # Print response
     print(response_text)

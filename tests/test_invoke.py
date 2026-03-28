@@ -1,4 +1,4 @@
-"""Unit tests for agents/invoke.py — context loading, session logging, memory extraction."""
+"""Unit tests for agents/invoke.py — context loading and session logging."""
 
 import sys
 from pathlib import Path
@@ -9,7 +9,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "agents"))
 
 from invoke import (
-    extract_memory_update,
     load_context,
     parse_context_manifest,
     write_session_log,
@@ -184,35 +183,3 @@ class TestWriteSessionLog:
         assert "Question 1" in content
 
 
-class TestExtractMemoryUpdate:
-    """Tests for memory update extraction from agent responses."""
-
-    def test_extracts_memory_update_section(self) -> None:
-        response = (
-            "Here is my analysis.\n\n"
-            "[MEMORY UPDATE]\n"
-            "- Active strategy: vol_filter v2.1.0\n"
-            "- Last experiment: EXP-019\n"
-        )
-        result = extract_memory_update(response)
-        assert result is not None
-        assert "vol_filter v2.1.0" in result
-        assert "EXP-019" in result
-
-    def test_returns_none_when_no_update(self) -> None:
-        response = "Here is my analysis. No memory changes needed."
-        result = extract_memory_update(response)
-        assert result is None
-
-    def test_extracts_only_memory_section(self) -> None:
-        response = (
-            "Analysis results here.\n\n"
-            "[MEMORY UPDATE]\n"
-            "- New finding: X\n\n"
-            "## Other Section\n"
-            "This should not be in memory.\n"
-        )
-        result = extract_memory_update(response)
-        assert result is not None
-        assert "New finding: X" in result
-        assert "Other Section" not in result

@@ -67,7 +67,7 @@ Question: [specific question]
 Session [ID] — closing.
 Summary: [findings]
 Next action: [what happens next]
-Memory updates: [any flagged]
+Memory updates: [any written via update_memory during session]
 ```
 
 ### Optimist
@@ -160,7 +160,7 @@ Manager must escalate to PO when:
 - Session is approaching turn limit without clear outcome
 - An agent requests access to gated resources (deep book reading, new data sources)
 - Any safety or compliance concern is raised
-- Memory updates are proposed (PO approval required)
+- Memory updates written directly via `update_memory` tool (no PO approval gate)
 
 Escalation format:
 ```
@@ -234,7 +234,7 @@ Written by Manager at session close:
 
 **Next action:** [what happens next]
 
-**Memory updates:** [any proposed — pending PO approval]
+**Memory updates:** [any written directly via `update_memory` tool]
 
 **Token usage:** [input/output tokens consumed]
 ```
