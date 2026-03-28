@@ -27,7 +27,7 @@ def main() -> None:
     parser.add_argument("--status", help="Filter by status (active|complete|superseded|invalid)")
     args = parser.parse_args()
 
-    index_path = Path(__file__).parent.parent / "agents" / "session-log" / "index.json"
+    index_path = Path(__file__).parent.parent / "research" / "session-log" / "index.json"
 
     results = query(
         index_path=index_path,

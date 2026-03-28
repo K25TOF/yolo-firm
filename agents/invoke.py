@@ -384,7 +384,8 @@ def main() -> None:
     response_text = api_response.content[0].text
 
     # Write session log
-    log_dir = agents_dir / "session-log"
+    research_dir = agents_dir.parent / "research"
+    log_dir = research_dir / "session-log"
     log_dir.mkdir(exist_ok=True)
     context_files = [d["path"] for d in docs]
     write_session_log(

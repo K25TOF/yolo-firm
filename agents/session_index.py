@@ -1,6 +1,6 @@
 """Session index management — append-only JSON index for research sessions.
 
-Provides atomic read/write operations for agents/session-log/index.json.
+Provides atomic read/write operations for research/session-log/index.json.
 Used by session.py and invoke.py to record completed sessions, and by
 scripts/query_sessions.py to search session history.
 """

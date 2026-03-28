@@ -194,7 +194,7 @@ Status: [answered / impasse / escalated / out of scope]
 
 ## Session Log Format
 
-Each session produces a log file: `session-log/YYYY-MM-DD-[session-id].md`
+Each session produces a log file: `research/session-log/YYYY-MM-DD-[session-id].md`
 
 ```markdown
 # Session: [session-id]

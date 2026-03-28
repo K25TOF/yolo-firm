@@ -6,7 +6,7 @@ _Owner: Boardroom | Approved by: PO | Version: 1.0_
 
 ## Purpose
 
-YOLO's Org Learning department consists of three specialised agents that form a virtual research team. They investigate strategy improvements, run experiments, and propose changes — all under PO authority.
+YOLO's Org Learning department consists of six specialised agents that form a virtual research team. They investigate strategy improvements, run experiments, challenge findings, and check external literature — all under PO authority.
 
 No agent can approve changes, deploy code, or modify production systems. Every output routes through PO for approval.
 
@@ -16,9 +16,12 @@ No agent can approve changes, deploy code, or modify production systems. Every o
 
 | Agent | Role | Tools | Key constraint |
 |---|---|---|---|
-| **Manager** | SPOC, data execution, session facilitator | All | Cannot approve — only routes to PO |
+| **Manager** | SPOC, data execution, session facilitator | run_backtest, update_memory | Cannot approve — only routes to PO |
 | **Optimist** | Finds alternative angles, never accepts defeat | update_memory | Cannot run backtests or access data directly |
 | **Challenger** | Demands evidence, finds errors, checks lookahead bias | update_memory | Cannot run backtests or access data directly |
+| **Statistician** | Sample sizes, CIs, multiple comparison correction | update_memory | Cannot run backtests; flags as [STAT FLAG] |
+| **Execution Realist** | Execution feasibility, price reality, stack constraints | update_memory | Cannot run backtests; flags as [EXEC FLAG] |
+| **Scout** | External literature search via web | web_search, update_memory | Cannot run backtests; only agent with web access |
 
 ---
 
@@ -29,6 +32,9 @@ No agent can approve changes, deploy code, or modify production systems. Every o
 - Manager: orchestrate sessions, run backtests, execute data tasks, write minutes, flag items for PO review
 - Optimist: propose alternative angles, find unexplored hypotheses, challenge premature conclusions, recommend strategy directions
 - Challenger: demand evidence for claims, find errors in methodology, check for lookahead bias, identify data quality issues
+- Statistician: calculate sample sizes, confidence intervals, flag multiple comparison issues, assess statistical significance
+- Execution Realist: assess execution feasibility, flag latency/slippage issues, check entry price reality against stack constraints
+- Scout: search external academic and practitioner literature, report findings with citations, flag contradictions with internal research
 
 ### What agents CANNOT do
 
@@ -116,27 +122,34 @@ Agents can write to their own memory file directly using the `update_memory` too
 | Manager | `agents/manager/memory.md` |
 | Optimist | `agents/optimist/memory.md` |
 | Challenger | `agents/challenger/memory.md` |
+| Statistician | `agents/statistician/memory.md` |
+| Execution Realist | `agents/execution-realist/memory.md` |
+| Scout | `agents/scout/memory.md` |
 
 ---
 
 ## File Structure
 
 ```
-agents/
+agents/                         # Agent definitions + framework code
   README.md                     # This file
   manager/
     system-prompt.md            # LLM system prompt — injected at session start
     context-manifest.md         # Documents loaded into context
     memory.md                   # Persistent memory
-  optimist/
-    system-prompt.md
-    context-manifest.md
-    memory.md
+  optimist/                     # Same 3-file pattern
   challenger/
-    system-prompt.md
-    context-manifest.md
-    memory.md
+  statistician/
+  execution-realist/
+    constraints.md              # Living reference doc (stack constraints)
+  scout/
   _retired/                     # Archived agent definitions (analyst, engineer)
+
+research/                       # Research outputs (separate from agent definitions)
+  session-log/                  # Session execution logs + index.json
+  reviews/                      # Post-session PO review documents
+  briefs/                       # Research audit briefs and plans
+  reports/                      # Manager-authored research reports
 ```
 
 ---

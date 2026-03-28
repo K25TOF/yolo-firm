@@ -48,6 +48,7 @@ COST_PER_OUTPUT = 5.00 / 1_000_000
 AGENTS_DIR = Path(__file__).parent
 FIRM_REPO = AGENTS_DIR.parent
 YOLO_REPO = FIRM_REPO.parent / "yolo"
+RESEARCH_DIR = FIRM_REPO / "research"
 INTERRUPT_FLAG = AGENTS_DIR / "session-interrupt.flag"
 
 VALID_AGENTS = {"optimist", "challenger", "manager", "statistician", "execution-realist", "scout"}
@@ -530,7 +531,7 @@ def run_session(
     agents_dir = AGENTS_DIR
     firm_repo = FIRM_REPO
     yolo_repo = YOLO_REPO
-    log_dir = agents_dir / "session-log"
+    log_dir = RESEARCH_DIR / "session-log"
     log_dir.mkdir(exist_ok=True)
 
     tracker = TokenTracker()
@@ -768,7 +769,7 @@ def run_session(
             # Check for session complete
             if "[SESSION_COMPLETE]" in turn.response:
                 # Write review doc on final manager turn
-                reviews_dir = agents_dir / "reviews"
+                reviews_dir = RESEARCH_DIR / "reviews"
                 write_review_doc(
                     reviews_dir=reviews_dir,
                     session_id=session_id,

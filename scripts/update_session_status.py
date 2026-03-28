@@ -29,7 +29,7 @@ def main() -> None:
     parser.add_argument("--superseded-by", default=None, help="ID of superseding session")
     args = parser.parse_args()
 
-    index_path = Path(__file__).parent.parent / "agents" / "session-log" / "index.json"
+    index_path = Path(__file__).parent.parent / "research" / "session-log" / "index.json"
 
     success = update_status(
         index_path=index_path,

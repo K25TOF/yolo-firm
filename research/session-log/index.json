@@ -1,0 +1,71 @@
+[
+  {
+    "id": "framework-test-001",
+    "date": "2026-03-28T17:52:20.195418+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "END-TO-END FRAMEWORK TEST — Guard C Review (LC-2025-014)\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. This is a framework validation test — keep it focused and concise (1 turn per agent max).\n\nRe",
+    "verdict_summary": "## Session Close — LC-2025-016\n\nAll five agent turns complete. Both Optimist and Challenger have delivered final flags. Proceeding to close.\n\n---\n\n## Updated FLAG FOR CONTEXT Master List\n\nConsolidating all flags across the full session:\n\n| Source | Flag | Priority |\n|---|---|---|\n| Statistician | n=14 firing population — CI [76.8%, 100%]. n=100 OOS catastrophic decline trades needed | High |\n| Statistician | Distribution of pp_saved on 14 improved trades unknown — mean could be outlier-driven | ",
+    "flag_count": 25,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/agents/session-log/2026-03-28-framework-test-001.md"
+  },
+  {
+    "id": "LC-2025-017",
+    "date": "2026-03-28T18:23:12.743805+00:00",
+    "agents": [
+      "manager"
+    ],
+    "question_summary": "LC-2025-017: Full Baseline Audit + Research Plan\n\n## Mission\nEstablish a clean, honest baseline of everything researched to date. Audit all prior work, retire what is invalid, confirm what is proven, ",
+    "verdict_summary": "## 3 Amigos Confirmation\n\n**My understanding:** This is a comprehensive audit and planning session (LC-2025-017). We need to sweep all prior research (EXP-001–024 + LC-2025-014 FA audit), produce a clean honest baseline of what is proven/conditional/retired, then build a prioritised research plan grounded in that baseline. The ultimate goal is identifying research directions with the highest probability of finding reliably profitable, targeted strategies.\n\n**I will:**\n- Sweep EXP-001–024 and pro",
+    "flag_count": 0,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/agents/session-log/2026-03-28-LC-2025-017.md"
+  },
+  {
+    "id": "LC-2025-017-partA",
+    "date": "2026-03-28T19:50:55.025879+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "statistician"
+    ],
+    "question_summary": "LC-2025-017 Part A: Experiment Sweep + FA Reconciliation\n\nPO CONFIRMATION: 3 Amigos confirmed. Proceed directly.\n\n## Part 1 — Experiment Sweep (EXP-001 to EXP-024)\n\nYou have the research-log.md in you",
+    "verdict_summary": "## Session Close — LC-2025-017 Part A\n\nBoth agents have completed their final turns. Challenger's final assessment is comprehensive and adds material refinements. Synthesising now before closing.\n\n---\n\n### Challenger's Final Turn — Key Additions\n\n**Accepted without change:**\n- ATR elevation: CONDITIONAL ACCEPTANCE pending LC-2025-009 methodology confirmation. Internal validity argument is sound (LB-3 doesn't undermine within-population comparison). External validity caveat retained.\n- FA5 vs FA8",
+    "flag_count": 29,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/agents/session-log/2026-03-28-LC-2025-017-partA.md"
+  },
+  {
+    "id": "LC-2025-017-partB",
+    "date": "2026-03-28T20:07:41.703119+00:00",
+    "agents": [
+      "execution-realist",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "LC-2025-017 Part B: Clean Baseline + Research Plan\n\nPO CONFIRMATION: 3 Amigos confirmed. Proceed directly.\n\nPart A session (LC-2025-017-partA) is complete. Read the session log at agents/session-log/2",
+    "verdict_summary": "## Session Continues — LC-2025-017 Part B\n\nAll five agents have now reported. Before writing the two output documents, let me consolidate the full FLAG FOR CONTEXT master list from all agent turns.\n\n---\n\n### FLAG FOR CONTEXT — Master List\n\n| # | Source | Flag | Priority |\n|---|---|---|---|\n| 1 | Optimist | Graduation count stat required — of 132 Good-rated entries, how many held to natural exit vs EOD force-close? | High |\n| 2 | Optimist | D2 (Bad Label) → D3 (OOS) dependency must be enforced in",
+    "flag_count": 21,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/agents/session-log/2026-03-28-LC-2025-017-partB.md"
+  }
+]

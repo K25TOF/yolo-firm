@@ -35,7 +35,7 @@ Options:
 - `--session-id <slug>` — human-readable session ID (default: auto-generated timestamp)
 - `--dry-run` — build all prompts without calling API
 
-The session uses dynamic routing: **Manager controls flow via `[NEXT: agent]` and `[SESSION_COMPLETE]` tags**. Output appears in the terminal. Session log is written to `agents/session-log/`.
+The session uses dynamic routing: **Manager controls flow via `[NEXT: agent]` and `[SESSION_COMPLETE]` tags**. Output appears in the terminal. Session log is written to `research/session-log/`.
 
 ## How to Run Autonomous Research
 
@@ -53,7 +53,7 @@ This runs sessions back-to-back, marking tasks complete as they finish. Stops on
 - Run `python3 agents/session.py` to orchestrate learning sessions
 - Run `python3 agents/run_agenda.py` to run autonomous research from an agenda
 - Read any file in this repo or the yolo repo (`/home/claude/projects/yolo/`)
-- Review session logs in `agents/session-log/`
+- Review session logs in `research/session-log/`
 - Invoke a single agent: `python3 agents/invoke.py --agent optimist --message "..."`
 - Update `~/status-log.md` after sessions
 
@@ -80,7 +80,7 @@ This runs sessions back-to-back, marking tasks complete as they finish. Stops on
 ## Environment
 
 - API key: `ANTHROPIC_API_KEY` must be set in `agents/.env` (not committed)
-- Session logs: `agents/session-log/*.md` (gitignored, operational)
+- Session logs: `research/session-log/*.md` (version-controlled)
 - Memory updates: Agents write directly via `update_memory` tool during sessions (backed up to `memory-history/`)
 - Pushover: `PUSHOVER_USER_KEY` and `PUSHOVER_APP_TOKEN` in `agents/.env` for PO notifications
 - Research agenda: `agents/research-agenda.md` (PO-authored, Manager reads)

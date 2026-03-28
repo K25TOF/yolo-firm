@@ -187,8 +187,10 @@ class TestRunSession:
         """Create a full agent tree for session tests."""
         agents = tmp_path / "agents"
         agents.mkdir()
-        log_dir = agents / "session-log"
-        log_dir.mkdir()
+        research = tmp_path / "research"
+        log_dir = research / "session-log"
+        log_dir.mkdir(parents=True)
+        (research / "reviews").mkdir(exist_ok=True)
 
         for agent in ("manager", "optimist", "challenger"):
             d = agents / agent
@@ -236,6 +238,7 @@ class TestRunSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             result = run_session(
                 question="Test question",
@@ -265,6 +268,7 @@ class TestRunSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question=None,
@@ -294,6 +298,7 @@ class TestRunSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question="Test",
@@ -313,6 +318,7 @@ class TestRunSession:
     def test_dry_run_skips_api_calls(self, session_env: dict) -> None:
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             result = run_session(
                 question="Test",
@@ -341,6 +347,7 @@ class TestRunSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question="Test",
@@ -683,8 +690,10 @@ class TestDynamicSession:
         """Create a full agent tree for session tests."""
         agents = tmp_path / "agents"
         agents.mkdir()
-        log_dir = agents / "session-log"
-        log_dir.mkdir()
+        research = tmp_path / "research"
+        log_dir = research / "session-log"
+        log_dir.mkdir(parents=True)
+        (research / "reviews").mkdir(exist_ok=True)
 
         for agent in ("manager", "optimist", "challenger"):
             d = agents / agent
@@ -733,6 +742,7 @@ class TestDynamicSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question="Test", open_mode=False,
@@ -757,6 +767,7 @@ class TestDynamicSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question="Test", open_mode=False,
@@ -780,6 +791,7 @@ class TestDynamicSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question="Test", open_mode=False,
@@ -804,6 +816,7 @@ class TestDynamicSession:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question="Test", open_mode=False,
@@ -817,6 +830,7 @@ class TestDynamicSession:
     def test_dry_run_still_works(self, session_env: dict) -> None:
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             result = run_session(
                 question="Test", open_mode=False,
@@ -834,8 +848,10 @@ class TestBlockerAndScopeRequest:
         """Create a full agent tree for session tests."""
         agents = tmp_path / "agents"
         agents.mkdir()
-        log_dir = agents / "session-log"
-        log_dir.mkdir()
+        research = tmp_path / "research"
+        log_dir = research / "session-log"
+        log_dir.mkdir(parents=True)
+        (research / "reviews").mkdir(exist_ok=True)
 
         for agent in ("manager", "optimist", "challenger"):
             d = agents / agent
@@ -888,6 +904,7 @@ class TestBlockerAndScopeRequest:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             result = run_session(
                 question="Test", open_mode=False,
@@ -916,6 +933,7 @@ class TestBlockerAndScopeRequest:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             run_session(
                 question="Test", open_mode=False,
@@ -948,6 +966,7 @@ class TestBlockerAndScopeRequest:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             result = run_session(
                 question="Test", open_mode=False,
@@ -980,6 +999,7 @@ class TestBlockerAndScopeRequest:
 
         with patch("session.AGENTS_DIR", session_env["agents_dir"]), \
              patch("session.FIRM_REPO", session_env["firm_repo"]), \
+             patch("session.RESEARCH_DIR", session_env["firm_repo"] / "research"), \
              patch("session.YOLO_REPO", session_env["yolo_repo"]):
             result = run_session(
                 question="Test", open_mode=False,
