@@ -35,6 +35,15 @@ This is a living reference of known execution constraints for the YOLO trading s
 - **Spread impact:** Market orders fill at ask (buy) or bid (sell), not mid-price. Typical spread for small-cap momentum stocks: 0.5-2.0% of price.
 - **Slippage:** Additional slippage on market orders during high-volatility moments (news, open, close).
 
+## VWAP Definition (Backtester)
+
+- **Formula:** `VWAP = Σ(typical_price × volume) / Σ(volume)` where `typical_price = (H + L + C) / 3`
+- **Reset:** Daily at RTH open (09:30 ET, ts_minute ≥ 570). Pre-market bars have VWAP = NaN.
+- **Source:** Computed from raw OHLCV bars. Polygon's per-bar `vw` field is NOT used.
+- **Zero-volume bars:** Skipped (carry forward previous VWAP). NaN at session open if first bar has V=0.
+- **Timezone:** US/Eastern via `zoneinfo`, DST-safe.
+- **Alignment:** Matches TradingView, Webull, and ThinkorSwim default RTH VWAP.
+
 ## Known Open Issues
 
 1. **Polygon-T212 timestamp offset:** 1-minute offset found vs Webull. T212 alignment is unverified. Must be resolved before any live trading decisions rely on cross-source timestamps.
