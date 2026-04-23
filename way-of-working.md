@@ -57,6 +57,14 @@ Full implementation detail in `~/CLAUDE.md` (10 Commandments).
 
 ---
 
+## Research Session Types
+
+**Solo sessions** (Manager only): permitted for pure data retrieval with no interpretation. Output is raw counts/tables only — no recommendations, no priority rankings, no population comparisons.
+
+**Multi-agent sessions** (Challenger + Statistician mandatory): required when output includes priority rankings, strategic recommendations, population comparisons, conclusions about signal quality, or any finding that informs the research plan. The moment Manager writes a sentence recommending an action or ranking a priority, Challenger and Statistician must be invoked in the same session.
+
+---
+
 ## Research Discipline
 
 All strategy experiments follow this protocol:

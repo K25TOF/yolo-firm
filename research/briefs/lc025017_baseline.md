@@ -69,7 +69,22 @@ conditional, what has failed, and what remains unknown. All future research star
   fires on sustained moves). Effect is real but does not fix core edge problem.
 - **Production status:** Include as supplementary exit rule. Do not rely on as primary edge.
 
-### 2.3 Hard Stop (−10% from Entry)
+### 2.3 Mechanical Bad Label (MFE_30bar < 10%)
+- **Finding:** If a trade's highest bar_high in the first 30 bars (30 minutes) after entry
+  never reaches +10% above entry price, the trade is mechanically labelled Bad.
+- **Evidence:** D2 concordance analysis on 265 entries (150 Good, 115 Bad, 33 Neutral excluded).
+  Precision on Bad class: 82.0% (CI [73.8%, 88.0%]). Cohen's kappa: 0.661 (CI [0.570, 0.753]).
+  Recall: 79.1%. 20 false positives, 24 false negatives.
+- **Scope:** Post-hoc outcome proxy only. Uses 30 bars of post-entry data — NOT usable as
+  a live entry filter. Intended use: label OOS entries for D3 validation without PO bottleneck.
+- **Caveats:** Entry price = bar_close[B0] (execution bias). Threshold kept at 10% throughout
+  research; adjustment to ~8-9% at production time when realistic entry price is known.
+  Kappa CI lower bound (0.570) touches below 0.60 — document in all downstream uses.
+- **Production status:** CONDITIONAL. Approved for D3 OOS labelling. Must be validated OOS
+  before any production claim. Threshold pre-specified in original D2 grid; D3 is the OOS confirmation.
+- **File:** `analysis/tools/lists/lc025014_mechanical_labels_v1.csv` (298 entries)
+
+### 2.4 Hard Stop (−10% from Entry)
 - **Finding:** Hard stop fires rarely (avg loser is −3.4%, well below −10% threshold);
   threshold is defensible as tail protection
 - **Evidence:** FA2 — fires only on catastrophic tail subset; does not distort typical exits
@@ -78,7 +93,7 @@ conditional, what has failed, and what remains unknown. All future research star
 - **Production status:** Include as tail risk protection. Threshold selection requires
   larger sample before optimising.
 
-### 2.4 Guard C (RSI<40 within 5 bars of entry)
+### 2.5 Guard C (RSI<40 within 5 bars of entry)
 - **Finding:** Guard C improves outcomes on >50pp catastrophic decline cluster only
   (+2.16pp, 0/49 hurt)
 - **Evidence:** FA5 — proven on >50pp subset; HARMS 20–50pp subset (40/49 hurt)
@@ -87,7 +102,7 @@ conditional, what has failed, and what remains unknown. All future research star
 - **Production status:** Do NOT deploy as general exit rule. Consider only for
   catastrophic-decline detection if that regime can be identified at entry time.
 
-### 2.5 ORB B-1 Coil Filter (≤ −4% below ORB high at B-1)
+### 2.6 ORB B-1 Coil Filter (≤ −4% below ORB high at B-1)
 - **Finding:** Requiring B-1 to be near but below ORB high appears to improve entry quality
 - **Evidence:** FA1 — ORB signal discriminates capture quality; borderline statistical
   significance
@@ -133,6 +148,12 @@ conditional, what has failed, and what remains unknown. All future research star
 | 5-min bar computation method | EMA9 on 5-min bars may require pre-aggregation step — unconfirmed |
 | All entries use bar_close[B0] | All PnL figures are upper-bound estimates; live trading degrades by 0.5–2.0% |
 | Spread not modelled | Sub-$1 live PnL materially lower than backtest PnL; 2–5% typical spread |
+
+---
+
+## Universe Discrepancy Note
+
+All LC-2025-014 entry and exit research (ORB breakout, Phase 1-3 exit rules, Guard C, D0 graduation count) was conducted on a 450-stock universe defined using all bars including pre/post market: `(max(bar_high) - min(bar_low)) / min(bar_low) >= 1.0` across all trading hours, further filtered by mcap >= $10M, type=CS, major exchange, and float_turnover >= 0.50. The scanner research (LC-2025-023) locked a revised definition using RTH bars only, which produces 782 runner-days — a different and larger population. Only 216 of the original 450 qualify under the RTH-only definition; 234 were inflated by pre/post market range. The LC-2025-014 findings remain conditionally valid on their original population but their applicability to the RTH-only 782-runner universe is unvalidated. When the scanner connects to the ORB entry research, this universe reconciliation must be performed explicitly.
 
 ---
 

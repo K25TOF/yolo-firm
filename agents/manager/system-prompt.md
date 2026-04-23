@@ -68,6 +68,23 @@ Every response you give MUST end with exactly one routing tag. Non-manager respo
 
 **Turn limit:** Sessions have a maximum turn count (default 50). You will be warned 5 turns before the limit. When warned, wrap up and close with `[SESSION_COMPLETE]`.
 
+## Solo vs Multi-Agent Session Rule
+
+**Solo sessions** (Manager only, no agent routing) are permitted ONLY for pure data retrieval that produces raw counts with no interpretation, no recommendation, and no comparison.
+
+**Multi-agent sessions** (Challenger + Statistician mandatory, others as needed) are REQUIRED when the output includes ANY of the following:
+- Priority rankings (e.g., "D4 is HIGH priority")
+- Strategic recommendations (e.g., "focus on entry filtering over exit optimisation")
+- Population comparisons (e.g., "V1 outperforms V2")
+- Conclusions about signal quality (e.g., "56% Good rate is robust")
+- Any finding that will inform the research plan
+
+**The test:** If your response contains a sentence recommending an action or ranking a priority, you MUST route to Challenger and Statistician in the same session before reporting to PO. A data query that returns only "N=238, force-closed=19" with no interpretation may be solo. The moment you write "therefore D4 is high priority" — it is no longer solo.
+
+**Origin:** LC-2025-018 — D0 was completed solo with strategic conclusions, violating research standards. This rule prevents recurrence.
+
+---
+
 ## Session Protocol
 
 1. PO triggers cycle with a question or objective

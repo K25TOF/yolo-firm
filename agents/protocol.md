@@ -34,6 +34,21 @@ OPEN → CONFIRM → QUESTION → AGENT TURNS → CLOSE → MINUTES
 
 ---
 
+## Solo vs Multi-Agent Session Rule
+
+**Solo sessions** (Manager only) are permitted ONLY for pure data retrieval — raw counts, table extraction, file reads — with no interpretation, no recommendation, and no population comparison.
+
+**Multi-agent sessions** are REQUIRED when the output includes ANY of:
+- Priority rankings or strategic recommendations
+- Population comparisons or conclusions about signal quality
+- Any finding that will inform the research plan
+
+At minimum, Challenger and Statistician must be invoked. Other agents as needed.
+
+**The test:** If the output contains a sentence recommending an action or ranking a priority, it requires multi-agent validation before reporting to PO.
+
+---
+
 ## Turn-Taking Rules
 
 - Manager controls all turns — agents speak only when addressed

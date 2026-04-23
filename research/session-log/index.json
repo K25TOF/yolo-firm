@@ -67,5 +67,474 @@
     "status": "complete",
     "superseded_by": null,
     "log_path": "/home/claude/projects/yolo-firm/agents/session-log/2026-03-28-LC-2025-017-partB.md"
+  },
+  {
+    "id": "D0-validation",
+    "date": "2026-03-28T22:56:15.844175+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "statistician"
+    ],
+    "question_summary": "D0 VALIDATION SESSION — Graduation Count Pre-Check\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. This validates the D0 findings before proceeding.\n\n## D0 CORRECTED RESULTS (v2)\n\nPopulation: 238 PO",
+    "verdict_summary": "## LC-2025-018 — Session Close\n\nAll five agents have now completed their turns (Challenger, Statistician, Execution Realist, Optimist, Statistician final memory turn). The session is structurally complete.\n\nWriting memory now before closing.",
+    "flag_count": 25,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-28-D0-validation.md"
+  },
+  {
+    "id": "D2-D1A-D6-validation",
+    "date": "2026-03-28T23:35:39.514249+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "D2/D1A/D6/Non-Grad Validation Session\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. This validates four parallel data queries before reporting to PO.\n\nPer protocol: these are raw data results. No ",
+    "verdict_summary": "## LC-2025-019 — Execution Realist Response Received\n\nExcellent contributions from all three agents. Now synthesising before session close.\n\n**Execution Realist key additions:**\n- D1A: Hard scanner exclusions required (gap < -30%, gap > +100%) — not just statistical cleaning. 18 missing entries should default to excluded.\n- D6: Retest classification is live-implementable in principle, but two preconditions: (1) resolve Challenger's lookahead concern, (2) outcome cross-tab required before any \"sk",
+    "flag_count": 24,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-28-D2-D1A-D6-validation.md"
+  },
+  {
+    "id": "D2-concordance",
+    "date": "2026-03-29T23:02:29.087738+00:00",
+    "agents": [
+      "manager"
+    ],
+    "question_summary": "D2 Concordance Analysis — Mechanical Bad Label\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Multi-agent session — Challenger and Statistician mandatory.\n\n## OBJECTIVE\nFind a mechanical rule (MAE%",
+    "verdict_summary": "As expected — the concordance analysis is a classification metrics task, not a price simulation task. The backtest engine operates on price bars and cannot execute a join + threshold grid computation. I need to compute this analytically from the data description provided.\n\nLet me work through this systematically from the data provided in the session briefing.\n\n---\n\n## Step 2 — Analytical Computation from Known Data\n\n**Known data:**\n- 265 trades (150 Good, 115 Bad) after excluding 33 neutrals\n- M",
+    "flag_count": 1,
+    "blocker_count": 1,
+    "status": "blocker",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-29-D2-concordance.md"
+  },
+  {
+    "id": "D2-validation",
+    "date": "2026-03-29T23:18:29.208695+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "D2 Concordance Validation — Mechanical Bad Label Results\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Challenger + Statistician mandatory.\n\n## RAW RESULTS (24 combinations tested on 265 entries: ",
+    "verdict_summary": "## Session Continues — LC-2025-020\n\nBoth agents have now completed their final turns. Before writing session close, I need to work through Challenger's new blocking flags — several are resolvable analytically, others require escalation.\n\n---\n\n### Addressing Challenger's Final Flags\n\n**C-F1: D2 criterion pre-registration status**\nFrom the session log context (LC-2025-017-partB and LC-2025-019): the D2 concordance task was defined in the research agenda with MAE/MFE as the proposed mechanical rule",
+    "flag_count": 6,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-29-D2-validation.md"
+  },
+  {
+    "id": "D2-mfe-validation",
+    "date": "2026-03-30T07:55:48.711826+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "D2 Follow-up Validation — MFE Standalone Result\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Challenger + Statistician mandatory.\n\n## STEP 1 RESULT: MFE_30bar < 10% PASSES SUCCESS CRITERION\n\nRule",
+    "verdict_summary": "## LC-2025-021 — Challenger Response Received\n\nExcellent audit. Challenger has raised two conditional blocking concerns (C1, A2) and four non-blocking demands (C2, C3, C4, C5). I need to work through these before closing.\n\nLet me assess each against available information before deciding whether to escalate or resolve.\n\n---\n\n## Triage of Challenger Demands\n\n**C1a — Was 10% pre-specified or post-hoc?**\nThis is a process question, not a data question. From the research agenda context and prior sess",
+    "flag_count": 6,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-D2-mfe-validation.md"
+  },
+  {
+    "id": "D3-validation",
+    "date": "2026-03-30T09:02:27.882047+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "statistician"
+    ],
+    "question_summary": "D3 OOS Validation — Results Ready\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Challenger + Statistician mandatory.\n\n## CRITICAL FINDING: Population mismatch explains the apparent OOS collapse\n\n#",
+    "verdict_summary": "## LC-2025-022 — Session Close\n\nOptimist has delivered. Three new constructive angles have been added. Assessing before closing.\n\n---\n\n### Optimist's additions — assessed:\n\n**Angle 1 (PO feature elicitation) — ACCEPTED as high-value next action.** The 218 IS labelled entries are a dataset. PO's 6x base-rate discrimination is the research asset. Annotating 30 Good ratings with top features is zero-cost and could unblock Flag #3 (filter recall). Routing as a proposed action to PO.\n\n**Angle 2 (Kapp",
+    "flag_count": 29,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-D3-validation.md"
+  },
+  {
+    "id": "LC-2025-023",
+    "date": "2026-03-30T10:03:16.963097+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "LC-2025-023: Scanner Research Plan — Pre-Market Runner Identification\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Full multi-agent session, all 6 agents. Scout runs FIRST.\n\n## MISSION\nDesign a r",
+    "verdict_summary": "## Session Status Check\n\nFive agent turns complete:\n- ✅ Scout (literature findings)\n- ✅ Optimist (5 hypotheses, prioritisation)\n- ✅ Challenger (full audit, 2 turns, 10 blocking issues A–J)\n- ✅ Statistician (2 turns, 7 STAT FLAGS)\n- ✅ Execution Realist (3 concrete questions answered, multiple EXEC FLAGS)\n\n**Execution Realist was cut off mid-sentence** on the \"Not currently executable\" section. However, the substance is clear from context — the incomplete item would cover things like EPS consensus",
+    "flag_count": 33,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-LC-2025-023.md"
+  },
+  {
+    "id": "P0-validation",
+    "date": "2026-03-30T10:23:47.426906+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Phase 0 Blocker Resolution Validation\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Challenger + Statistician mandatory.\n\n## RAW DATA (no interpretation — validation session produces all conclusio",
+    "verdict_summary": "Challenger has been cut off mid-sentence on Blocker A verdict. I'll complete the session by synthesising what we have, noting the cut-off, then routing to a final synthesis before closing.\n\nActually — Challenger was mid-response on the blocker verdicts section. The cut-off occurred before A, B, J, X4 verdicts were fully rendered. I need to acknowledge this, extract the substance of what was delivered (Q1–Q5 audit is complete), and proceed to session close with what we have.\n\nThe blocker verdict ",
+    "flag_count": 3,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-P0-validation.md"
+  },
+  {
+    "id": "P1-validation",
+    "date": "2026-03-30T10:46:59.009708+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "optimist",
+      "statistician"
+    ],
+    "question_summary": "Phase 1 Scanner Signal Validation\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Challenger + Statistician mandatory.\n\n## RAW RESULTS — Three signals tested on 112,679 ticker-dates (782 RTH 100%+ r",
+    "verdict_summary": "## Session Continues — LC-2025-024\n\nOptimist has delivered. Three structurally sound contributions:\n\n1. **Mechanical inflation rebuttal** — smooth lift curve (not step-function) is inconsistent with pure mechanical inflation. Gap% is a genuine signal with a mechanical *component*, not a mechanical *artefact*.\n2. **Runner definition reformulation** — `(intraday_high - RTH_open) / RTH_open ≥ 0.50` as a gap-independent alternative. Testable with existing daily bar data.\n3. **Three clean Phase 2 sig",
+    "flag_count": 3,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-P1-validation.md"
+  },
+  {
+    "id": "P2-ABC-validation",
+    "date": "2026-03-30T20:02:40.178566+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "P2-ABC Validation — Signal Degradation After Fixes\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Challenger + Statistician mandatory.\nPO REQUIREMENT: Statistician must report what happens to tripl",
+    "verdict_summary": "## LC-2025-025 — Session Close\n\nBoth agents have completed their final turns. Challenger has delivered a strong final audit including one new finding (F3 — removed subset precision 33.3%). Proceeding to synthesis and close.\n\n---\n\n## Session Synthesis — Key Findings (5 bullets)\n\n1. **Fix A degradation is non-significant and robust.** The 1pp precision drop (10.8%→9.8%) does not survive BH correction at k=4, and the \"not significant\" conclusion holds for any k≥4. This is the cleanest settled findi",
+    "flag_count": 13,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-P2-ABC-validation.md"
+  },
+  {
+    "id": "P2-blockers",
+    "date": "2026-03-30T20:18:42.261190+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "P2-ABC Blocker Resolution Validation\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. Challenger + Statistician mandatory. Session should be SHORT — data is clear-cut.\n\n## DATA — Three tasks resolved",
+    "verdict_summary": "Memory updated. Session LC-2025-026 complete from Statistician's side.",
+    "flag_count": 4,
+    "blocker_count": 0,
+    "status": "turn_limit",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-P2-blockers.md"
+  },
+  {
+    "id": "P2F-validation",
+    "date": "2026-03-30T20:39:59.823119+00:00",
+    "agents": [
+      "manager",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "Phase 2-F OOS Validation Results — SIGNAL VALIDATED\n\nPO INSTRUCTION: Skip 3 Amigos. Proceed directly. All agents mandatory per brief.\n\n## OOS RESULTS (ONE SHOT, thresholds locked, no tuning)\n\nTriple s",
+    "verdict_summary": "## LC-2025-027 — Data Injection Received\n\nPO has now provided the OOS data. Reviewing the transcript — I note that the data was not explicitly provided in the handoff message. The transcript ends with the Statistician's final turn recommending closure as INCOMPLETE.\n\nBefore I proceed, let me re-read the PO trigger carefully.\n\n---\n\n**Assessment:** The PO message says \"Continue the session per protocol\" — but the 12-item data table has still not been provided. The transcript shows the same data-ab",
+    "flag_count": 12,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-P2F-validation.md"
+  },
+  {
+    "id": "P2F-v2",
+    "date": "2026-03-30T20:50:52.701839+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Phase 2-F OOS Validation — DATA PRE-LOADED\n\nPO INSTRUCTION: Skip 3 Amigos. ALL DATA IS BELOW. Do not request additional data. Route each agent ONCE with the data package below injected verbatim. Chall",
+    "verdict_summary": "## Session Continues — LC-2025-027\n\nAll three mandated agent turns are complete:\n- ✅ Statistician — provisional PASS on quantitative gates, 4 stat flags (2 blocking)\n- ✅ Challenger — CONDITIONAL VALIDATED recommendation, 4 blocking/qualifying items\n- ✅ Execution Realist — NOT YET DEPLOYABLE verdict, 3 deployment blockers\n\nNow synthesising before session close.\n\n---\n\n## Synthesis — Key Findings (5 bullets)\n\n1. **Quantitative gates: PASS on point estimates.** OOS precision 11.5% (CI [7.6%, 16.9%])",
+    "flag_count": 4,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-P2F-v2.md"
+  },
+  {
+    "id": "LC-2025-029",
+    "date": "2026-03-30T21:37:52.043604+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "Path to Live Trading — Collaborative Research Agenda\n\nPO INSTRUCTION: Skip 3 Amigos. This is a collaborative design session, not an audit. All agents should contribute constructively. Optimist pushes ",
+    "verdict_summary": "## Session Continues — LC-2025-028\n\nBoth Optimist and Challenger have delivered final turns. Challenger's additions are substantive — four new items that materially affect the agenda design. Let me integrate these before writing the session close.\n\n---\n\n## Integrating Challenger's Final Turn\n\n**Accepted without change:**\n- B4 → B3 dependency: B4 (coil/VR derivation sequence) must resolve *before* B3 (L2 OOS on 183 fires) can be validly executed. Master list will be updated to reflect this sequen",
+    "flag_count": 54,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-LC-2025-029.md"
+  },
+  {
+    "id": "A1-audit",
+    "date": "2026-03-30T21:52:58.219404+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "A1 RVOL Baseline Audit — DATA PRE-LOADED\n\nPO INSTRUCTION: Skip 3 Amigos. Challenger mandatory. SHORT session — data is clear-cut.\n\n## AUDIT FINDING: CLEAN — no lookahead in ORB entry vol_ratio\n\nTwo se",
+    "verdict_summary": "Both agents have now completed their turns. Synthesising before session close.\n\n---\n\n## Session Synthesis — LC-2025-030\n\n**Both agents agree: A1 = OPEN.**\n\nKey findings (5 bullets):\n\n1. **vol_ratio conceptual design is clean** — intraday rolling SMA, separate from rvol cross-day baseline. The architecture is correctly structured *in description*.\n\n2. **Two unconfirmed code facts block RESOLVED** — D1: session boundary enforcement location for `compute_vol_ratio_series`; D2: column binding of `vr",
+    "flag_count": 1,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-A1-audit.md"
+  },
+  {
+    "id": "A1-resolution",
+    "date": "2026-03-30T21:57:54.487944+00:00",
+    "agents": [
+      "challenger",
+      "manager"
+    ],
+    "question_summary": "A1 Resolution — Code Evidence Provided\n\nPO INSTRUCTION: Skip 3 Amigos. ONE TURN resolution. Challenger demanded two code extracts — both provided below.\n\n## D1: signal_bars.py vol_ratio call chain\n\n``",
+    "verdict_summary": "## Session Close — LC-2025-031\n\nChallenger has delivered a clean, unambiguous verdict. No further agent turns required — this was scoped as a single-turn audit.\n\n---\n\n### Synthesis\n\n**Verdict:** A1 RESOLVED — no lookahead bias in vol_ratio computation.\n\n**Chain cleared:**\n- `sorted_bars` = same-day only → no cross-day input\n- `compute_vol_ratio_series` uses `vol_sma[i-1]` as denominator → strictly causal, bar `i` excluded from its own average\n- No forward fill, full-series normalisation, or futu",
+    "flag_count": 1,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-A1-resolution.md"
+  },
+  {
+    "id": "A2-A7-validation",
+    "date": "2026-03-30T22:20:00.959414+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Stage 0 Audit A2-A7 Validation — DATA PRE-LOADED\n\nPO INSTRUCTION: Skip 3 Amigos. Challenger + Statistician mandatory. SHORT session.\n\n## ALL RESULTS\n\n### A2: signal_bars schema — CLEAN\n24 of 26 column",
+    "verdict_summary": "## Session Continues — LC-2025-032\n\nBoth Challenger and Statistician have completed their turns. Synthesising before session close.\n\n---\n\n## Synthesis — Key Findings (5 bullets)\n\n1. **A2, A6, A7 confirmed RESOLVED.** Schema clean for ORB entry columns; news pre-specification confirmed; OOS ticker concentration within acceptable bounds (est. HHI < 0.01, max 4 appearances, no ticker > 9). A7 carries a narrow caveat: N=183 puts Wilson CI width at ±7.2pp, marginally outside the ≤±7pp gate — all OOS ",
+    "flag_count": 7,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-30-A2-A7-validation.md"
+  },
+  {
+    "id": "gate-specs",
+    "date": "2026-03-31T08:35:57.551976+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Stage 1: Gate Specification — Lock Before Stage 2\n\nPO INSTRUCTION: Skip 3 Amigos. Challenger + Statistician mandatory. This session WRITES the gate document. No data examination. Pure specification.\n\n",
+    "verdict_summary": "## Session Continues — LC-2025-033\n\nChallenger's audit is comprehensive. I have 10 findings to work through before writing the document. Let me triage each finding by severity before proceeding.\n\n---\n\n## Triage of Challenger's 10 Findings\n\n**Blocking (must resolve before document can be finalised):**\n\n| # | Finding | Resolution path |\n|---|---|---|\n| 1 | L2 threshold derivation source not stated — if derived from 183 OOS entries, Gate 1 is invalid | Requires PO clarification |\n| 6 | Multiple com",
+    "flag_count": 3,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-gate-specs.md"
+  },
+  {
+    "id": "B3-failure",
+    "date": "2026-03-31T08:57:05.364553+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "B3 Gate 1 FAILED — Root Cause + Path Forward\n\nPO INSTRUCTION: Skip 3 Amigos. All agents. This is both a validation of the failure AND a collaborative discussion on what to do next.\n\n## B3 RESULTS (dat",
+    "verdict_summary": "## Session Continues — LC-2025-034\n\nScout has completed web searches. Compiling Scout's findings now before writing final synthesis.\n\n---\n\n**Scout Report — LC-2025-034**\n\nBased on the search results conducted:\n\n### Q1 — Does Literature Confirm ORB Structural Inapplicability on Pre-Gapped Stocks?\n\n**Finding: YES — confirmed in practitioner and academic sources.**\n\nThe ORB signal originates with Toby Crabel's *Day Trading with Short Term Price Patterns and Opening Range Breakout* (1990), designed ",
+    "flag_count": 28,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-B3-failure.md"
+  },
+  {
+    "id": "paper-spec",
+    "date": "2026-03-31T09:51:58.329903+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "Track 2: Scanner-Only Paper Trading Spec\n\nPO INSTRUCTION: Skip 3 Amigos. Execution Realist + Scout mandatory. This designs the fallback paper trading approach.\n\n## CONTEXT\nScanner signal validated OOS",
+    "verdict_summary": "## LC-2025-035 — Challenger Audit\n\n**Evidence provided:** Full session transcript including Scout literature review, Execution Realist feasibility assessment, Statistician sizing analysis, and Optimist synthesis. I have the proposed spec elements, all supporting data, and all flags raised by prior agents.\n\n---\n\n## Lookahead Bias Check\n\n**Result: MULTIPLE INSTANCES — partially addressed, partially unresolved.**\n\n1. **bar_close[B0] as entry price (Options B, C, D):** Execution Realist correctly fl",
+    "flag_count": 36,
+    "blocker_count": 0,
+    "status": "turn_limit",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-paper-spec.md"
+  },
+  {
+    "id": "vwap-fix-story",
+    "date": "2026-03-31T10:13:19.798095+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "scout"
+    ],
+    "question_summary": "VWAP Fix Workshop Story — Define Specification\n\nPO INSTRUCTION: Skip 3 Amigos. Scout first, then Execution Realist, then Manager writes story, Challenger reviews.\n\n## PROBLEM\nBacktester VWAP uses Poly",
+    "verdict_summary": "## Challenger Review — LC-2025-036\n\n### Evidence Provided\n- Manager synthesis of Scout findings (VWAP platform definitions — TradingView, Webull, ThinkorSwim)\n- Manager synthesis of Execution Realist assessment (architecture feasibility)\n- Workshop story draft with 8 Acceptance Criteria\n\nThis is a spec review task. No backtest data or strategy claims are being made. Lookahead bias check scope is limited to the spec design itself.\n\n---\n\n### Lookahead Bias Check\n\n**Result: NOT APPLICABLE to this s",
+    "flag_count": 1,
+    "blocker_count": 0,
+    "status": "turn_limit",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-vwap-fix-story.md"
+  },
+  {
+    "id": "kill-criterion",
+    "date": "2026-03-31T10:46:26.877310+00:00",
+    "agents": [
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Kill Criterion Resolution — Statistician Only\n\nPO INSTRUCTION: Skip 3 Amigos. Statistician only, one turn. SHORT.\n\n## PROBLEM\nThe paper spec has two monitoring rules that conflict:\n1. Primary kill cri",
+    "verdict_summary": "## Session Continue — LC-2025-037\n\nStatistician has delivered. Clean, well-structured output. Before closing, let me assess the substance and check for any issues requiring escalation.\n\n---\n\n### Assessment of Statistician Output\n\n**Accepted without change:**\n- Exact binomial test (not Wilson CI upper bound) — correct reframing. Wilson CI < 5% was testing the wrong null.\n- Bonferroni correction at 3 formal checkpoints → per-checkpoint α = 0.0125. Conservative but appropriate for kill decisions wh",
+    "flag_count": 3,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-kill-criterion.md"
+  },
+  {
+    "id": "spec-clarify",
+    "date": "2026-03-31T10:57:25.985501+00:00",
+    "agents": [
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Two Spec Clarifications — Statistician Only\n\nPO INSTRUCTION: Skip 3 Amigos. Statistician only, one turn.\n\n## Q1: Which T threshold for Gate 2 Good label?\n\nTwo mechanical labels exist:\n- D2 label: MFE_",
+    "verdict_summary": "The Statistician's response was cut off mid-computation for Option B n=106 and Option C hasn't been computed yet. I need to complete the computation before synthesising.\n\nLet me continue the binomial calculations where the Statistician left off.\n\n**Completing Option B n=106 (continuing from F(4)=0.004609):**\n\nF(5): C(106,5) = (106×105×104×103×102)/120\n= (119,224,560×102)/120 = 12,160,904,640/120 = 101,340,872\n- (0.115)^5 = 0.0001750 × 0.115 = 0.00002013\n- (0.885)^101 = 3.847×10⁻⁶/0.885 = 4.347×1",
+    "flag_count": 0,
+    "blocker_count": 0,
+    "status": "turn_limit",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-spec-clarify.md"
+  },
+  {
+    "id": "signal3-validation",
+    "date": "2026-03-31T11:45:40.409628+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "Signal 3 VWAP Position — GATE 1 PASS — Validation Required\n\nPO INSTRUCTION: Skip 3 Amigos. Scout + Challenger + Statistician mandatory. DATA PRE-LOADED.\n\n## RESULTS — Signal 3: VWAP position at ORB cl",
+    "verdict_summary": "## Session Continues — LC-2025-038\n\nBoth core agents have delivered. Challenger has raised two blocking items and two required-before-report items. Before I can write a verdict, I need to resolve or escalate the blocking concerns.\n\nLet me work through Challenger's four items against available information.\n\n---\n\n## Triage of Challenger's Items\n\n**Blocking Item 1 — VWAP[ts=574] same-bar circularity**\n\nThis requires code-level confirmation. The session data package states:\n- VWAP: RTH-reset HLC3, P",
+    "flag_count": 3,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-signal3-validation.md"
+  },
+  {
+    "id": "paper-spec-v2",
+    "date": "2026-03-31T12:18:55.491104+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "Signal 3 Confirmed: Scout Search + Paper Spec Revision\n\nPO INSTRUCTION: Skip 3 Amigos. Scout runs FIRST. Then Optimist, Challenger, Statistician. All four mandatory.\n\n## TASK 1: SCOUT LITERATURE SEARC",
+    "verdict_summary": "## Session Continues — LC-2025-039\n\nAll final agent turns are complete:\n- ✅ Scout — literature review complete\n- ✅ Statistician — five parameters recalibrated, all STAT-flagged\n- ✅ Challenger — four blockers + eight flags + four final flags (items 16–19)\n- ✅ Optimist — fastest-path recommendation + three final flags (items 20–22)\n\nFull master list now stands at 22 items (4 blocking, 18 non-blocking).\n\nNow writing the paper spec draft and session minutes before closing.\n\n---\n\n## Writing Paper Spe",
+    "flag_count": 8,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-paper-spec-v2.md"
+  },
+  {
+    "id": "backtest-diagnosis",
+    "date": "2026-03-31T13:20:19.900949+00:00",
+    "agents": [
+      "challenger",
+      "execution-realist",
+      "manager",
+      "optimist",
+      "scout",
+      "statistician"
+    ],
+    "question_summary": "FULL STACK BACKTEST: CATASTROPHIC LOSS — Root Cause Analysis\n\nPO INSTRUCTION: Skip 3 Amigos. All agents. This is urgent — diagnose why the validated signal produces catastrophic losses in a full backt",
+    "verdict_summary": "## Session Continues — LC-2025-040\n\nAll five agents have now completed their turns:\n- ✅ Challenger — blocking questions raised, lookahead contamination flagged\n- ✅ Statistician — implied survivor WR ~22.9%, CI on 9.9% WR = [6.1%, 15.4%]\n- ✅ Execution Realist — entry timing diagnosis, 56.8% expected for exhaustion entry\n- ✅ Scout — literature confirms 55–65% bar-2 fade rate; standard ORB requires price breakout above ORB high\n- ✅ Optimist — four alternative angles, five prioritised next tests\n\nBe",
+    "flag_count": 13,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-backtest-diagnosis.md"
+  },
+  {
+    "id": "preregistration",
+    "date": "2026-03-31T16:29:40.626046+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Step 3: Pre-Registration Document — Challenger + Statistician Sign-Off\n\nPO INSTRUCTION: Skip 3 Amigos. Challenger + Statistician ONLY. Short session — sign off or flag issues.\n\n## PRE-REGISTRATION DOC",
+    "verdict_summary": "## Challenger Final Response — LC-2025-041\n\n### Evidence Provided for Final Round\n- Full session transcript including both Challenger and Statistician verdicts\n- Manager's resolution of Challenger Q2 (LC-2025-029 cited as pre-dating LC-2025-034)\n- Statistician's two blocking items (BH procedure, std of paired MAE differences + design-set N)\n\n---\n\n## Q2 Resolution — Do I Accept Manager's Answer?\n\n**Manager's claim:** Parameter ranges were established in LC-2025-029 (2026-03-30) before any design-",
+    "flag_count": 5,
+    "blocker_count": 0,
+    "status": "turn_limit",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-preregistration.md"
+  },
+  {
+    "id": "entry-validation",
+    "date": "2026-03-31T17:03:53.434876+00:00",
+    "agents": [
+      "challenger",
+      "manager",
+      "statistician"
+    ],
+    "question_summary": "Step 7: Entry Pattern Validation — Challenger + Statistician\n\nPO INSTRUCTION: Skip 3 Amigos. Challenger + Statistician mandatory. Data pre-loaded.\n\n## PRE-REGISTRATION STATUS\nFire rate 40% threshold w",
+    "verdict_summary": "## LC-2025-042 — Synthesis Phase\n\nBoth agents have completed their turns. Before writing the final verdict, I need to work through the blocking items raised. Several can be resolved from context; others require PO input.\n\n---\n\n## Triage of Blocking Items\n\n**Challenger C2 — 10:30 timeout + PB threshold selection origin**\n\nFrom session context (LC-2025-041 pre-registration):\n- The pre-registration document was produced *before* the OOS run — this is the definition of pre-registration in our protoc",
+    "flag_count": 9,
+    "blocker_count": 0,
+    "status": "complete",
+    "superseded_by": null,
+    "log_path": "/home/claude/projects/yolo-firm/research/session-log/2026-03-31-entry-validation.md"
   }
 ]

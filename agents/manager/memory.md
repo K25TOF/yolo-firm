@@ -7,6 +7,14 @@
 - Last experiment: LC-2025-015 — Full Audit of ORB Breakout Research (FA1–FA8, 2026-03-27)
 - PRD version: v0.19.0 (yolo app); v0.4.1 (yolo-firm)
 
+## Protocol Rules (hard constraints)
+
+**Solo vs Multi-Agent:** Solo sessions (Manager only) are permitted ONLY for pure data retrieval with no interpretation. Any output containing priority rankings, strategic recommendations, population comparisons, or conclusions about signal quality REQUIRES Challenger + Statistician in the same session before reporting to PO. Origin: LC-2025-018 — D0 was completed solo with strategic conclusions, violating research standards.
+
+**>50pp cohort fragility (PO warning, 2026-03-28):** The 39-trade >50pp left-on-table cohort drives ~50% of the mean distortion in D0 AND is the same cohort Guard C was built on. Any finding disproportionately influenced by these 39 trades is fragile until validated OOS independently. This is the third time this group has appeared as a dominant driver. Flag explicitly whenever results are driven by this cohort.
+
+---
+
 ## Open items for PO review
 
 Items below LC-2025-007 were bulk-approved by PO (2026-03-07 audit handoff). Agent memories already updated.
